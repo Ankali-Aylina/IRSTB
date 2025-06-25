@@ -1,0 +1,2595 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>TCV3Class</class>
+ <widget class="QMainWindow" name="TCV3Class">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>720</width>
+    <height>480</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>720</width>
+    <height>480</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>TCV3</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true"/>
+  </property>
+  <widget class="QWidget" name="centralWidget">
+   <property name="styleSheet">
+    <string notr="true">#centralWidget{
+	background-color:rgb(73, 102, 136);
+	border-radius: 10px;
+}</string>
+   </property>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="5">
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QPushButton" name="minimizeButton">
+        <property name="minimumSize">
+         <size>
+          <width>25</width>
+          <height>25</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>25</width>
+          <height>25</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">#minimizeButton{
+border-radius:5px;
+}
+
+#minimizeButton:hover{
+background-color:rgb(114, 159, 212)
+}</string>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="icon">
+         <iconset resource="TCV3.qrc">
+          <normaloff>:/TCV3/res/icon/minimize.png</normaloff>:/TCV3/res/icon/minimize.png</iconset>
+        </property>
+        <property name="iconSize">
+         <size>
+          <width>20</width>
+          <height>20</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="maximizeButton">
+        <property name="minimumSize">
+         <size>
+          <width>25</width>
+          <height>25</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>25</width>
+          <height>25</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">#maximizeButton{
+border-radius:5px;
+}
+
+#maximizeButton:hover{
+background-color:rgb(114, 159, 212)
+}</string>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="icon">
+         <iconset resource="TCV3.qrc">
+          <normaloff>:/TCV3/res/icon/maximize.png</normaloff>:/TCV3/res/icon/maximize.png</iconset>
+        </property>
+        <property name="iconSize">
+         <size>
+          <width>20</width>
+          <height>20</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="closeButton">
+        <property name="minimumSize">
+         <size>
+          <width>25</width>
+          <height>25</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>25</width>
+          <height>25</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">#closeButton{
+border-radius:5px;
+}
+
+#closeButton:hover{
+background-color:rgb(114, 159, 212)
+}</string>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="icon">
+         <iconset resource="TCV3.qrc">
+          <normaloff>:/TCV3/res/icon/close.png</normaloff>:/TCV3/res/icon/close.png</iconset>
+        </property>
+        <property name="iconSize">
+         <size>
+          <width>20</width>
+          <height>20</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="1" column="3" colspan="3">
+     <widget class="QStackedWidget" name="stackedWidget">
+      <property name="styleSheet">
+       <string notr="true">border-radius: 5px;</string>
+      </property>
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="homePage">
+       <property name="styleSheet">
+        <string notr="true">homePage{
+ background-color:rgb(45, 63, 85)
+}</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <widget class="QWidget" name="homeWidget" native="true">
+          <property name="styleSheet">
+           <string notr="true">#homeWidget{
+background:rgb(45, 63, 85);
+}
+</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_5">
+           <item>
+            <widget class="QFrame" name="frame_8">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true"> background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_18">
+              <item>
+               <widget class="QPushButton" name="cpuTempIcon">
+                <property name="minimumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>CPU温度</string>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#cpuTempIcon{
+border-radius:5px;
+background:rgb(93, 130, 174);
+}
+
+QToolTip{
+color:white;
+}</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/cpuTemp.png</normaloff>:/TCV3/res/icon/cpuTemp.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QProgressBar" name="cpuTempProgressBar">
+                <property name="minimumSize">
+                 <size>
+                  <width>381</width>
+                  <height>23</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="acceptDrops">
+                 <bool>false</bool>
+                </property>
+                <property name="layoutDirection">
+                 <enum>Qt::RightToLeft</enum>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#cpuTempProgressBar{
+height:22px;
+background:qlineargradient(spread:pad,x1:0,y1:0,x2:1,y2:0,stop:0 #729fd4 ,stop: 1 #dc143c);
+border-radius:5px;
+color:rgba(255, 255, 255, 0)
+}
+#cpuTempProgressBar:chunk{
+border-radius:-5px;
+background: #2d3f55;
+}</string>
+                </property>
+                <property name="minimum">
+                 <number>0</number>
+                </property>
+                <property name="maximum">
+                 <number>0</number>
+                </property>
+                <property name="value">
+                 <number>-1</number>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+                <property name="textVisible">
+                 <bool>true</bool>
+                </property>
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="invertedAppearance">
+                 <bool>true</bool>
+                </property>
+                <property name="textDirection">
+                 <enum>QProgressBar::BottomToTop</enum>
+                </property>
+                <property name="format">
+                 <string>%v</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="cpuTempLabel">
+                <property name="minimumSize">
+                 <size>
+                  <width>64</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>64</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color:white;</string>
+                </property>
+                <property name="text">
+                 <string>初始化…</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_10">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true"> background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_23">
+              <item>
+               <widget class="QPushButton" name="gpuTempIcon">
+                <property name="minimumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>GPU温度</string>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#gpuTempIcon{
+border-radius:5px;
+background:rgb(93, 130, 174);
+}
+
+QToolTip{
+color:white;
+}</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/gpuTemp.png</normaloff>:/TCV3/res/icon/gpuTemp.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QProgressBar" name="gpuTempProgressBar">
+                <property name="minimumSize">
+                 <size>
+                  <width>381</width>
+                  <height>23</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="acceptDrops">
+                 <bool>false</bool>
+                </property>
+                <property name="layoutDirection">
+                 <enum>Qt::RightToLeft</enum>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#gpuTempProgressBar{
+height:22px;
+background:qlineargradient(spread:pad,x1:0,y1:0,x2:1,y2:0,stop:0 #729fd4 ,stop: 1 #dc143c);
+border-radius:5px;
+color:rgba(255, 255, 255, 0)
+}
+#gpuTempProgressBar:chunk{
+border-radius:-5px;
+background: #2d3f55;
+}</string>
+                </property>
+                <property name="minimum">
+                 <number>0</number>
+                </property>
+                <property name="maximum">
+                 <number>0</number>
+                </property>
+                <property name="value">
+                 <number>0</number>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+                <property name="textVisible">
+                 <bool>true</bool>
+                </property>
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="invertedAppearance">
+                 <bool>true</bool>
+                </property>
+                <property name="textDirection">
+                 <enum>QProgressBar::BottomToTop</enum>
+                </property>
+                <property name="format">
+                 <string>%v</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="gpuTempLabel">
+                <property name="minimumSize">
+                 <size>
+                  <width>64</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>64</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color:white;
+</string>
+                </property>
+                <property name="text">
+                 <string>初始化…</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_11">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true"> background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_24">
+              <item>
+               <widget class="QPushButton" name="BLEButton">
+                <property name="minimumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>点击重连设备</string>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#BLEButton{
+border-radius:5px;
+background:rgb(93, 130, 174);
+}
+#BLEButton:hover{
+ background-color:rgb(114, 159, 212);
+}
+
+#BLEButton:pressed{
+ background-color:rgb(45, 63, 85);
+}
+
+QToolTip{
+color:white;
+}</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/BLE_Off.png</normaloff>:/TCV3/res/icon/BLE_Off.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QProgressBar" name="BLEProgressBar">
+                <property name="minimumSize">
+                 <size>
+                  <width>381</width>
+                  <height>23</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="acceptDrops">
+                 <bool>false</bool>
+                </property>
+                <property name="layoutDirection">
+                 <enum>Qt::LeftToRight</enum>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#BLEProgressBar{
+height:22px;
+background:qlineargradient(spread:pad,x1:0,y1:0,x2:1,y2:0,stop:0 #729fd4 ,stop: 1 #dc143c);
+border-radius:5px;
+color:rgba(255, 255, 255, 0)
+}
+#BLEProgressBar:chunk{
+border-radius:-5px;
+background: #2d3f55;
+}</string>
+                </property>
+                <property name="minimum">
+                 <number>0</number>
+                </property>
+                <property name="maximum">
+                 <number>0</number>
+                </property>
+                <property name="value">
+                 <number>0</number>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+                <property name="textVisible">
+                 <bool>true</bool>
+                </property>
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="invertedAppearance">
+                 <bool>false</bool>
+                </property>
+                <property name="textDirection">
+                 <enum>QProgressBar::BottomToTop</enum>
+                </property>
+                <property name="format">
+                 <string>%v</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="BLELabel">
+                <property name="minimumSize">
+                 <size>
+                  <width>64</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>64</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#BLELabel{
+color:white;
+}</string>
+                </property>
+                <property name="text">
+                 <string>初始化…</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_12">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTip">
+              <string>根据温度自动调节散热器</string>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">color:white;
+background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_25">
+              <item>
+               <widget class="QPushButton" name="AutoModeButton">
+                <property name="minimumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#AutoModeButton{
+color:white;
+background-color:rgb(93, 130, 174);
+border-radius:5px;
+}
+
+#AutoModeButton:hover{
+ background-color:rgb(114, 159, 212);
+}
+
+#AutoModeButton:pressed{
+ background-color:rgb(45, 63, 85);
+}</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/Button_On.png</normaloff>:/TCV3/res/icon/Button_On.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="label_3">
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color:white;</string>
+                </property>
+                <property name="text">
+                 <string>自动模式</string>
+                </property>
+                <property name="textFormat">
+                 <enum>Qt::AutoText</enum>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_14">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTip">
+              <string>散热器保持最小负载运行</string>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">color:white;
+background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_27">
+              <item>
+               <widget class="QPushButton" name="SilentModeButton">
+                <property name="minimumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#SilentModeButton{
+color:white;
+background-color:rgb(93, 130, 174);
+border-radius:5px;
+}
+
+#SilentModeButton:hover{
+ background-color:rgb(114, 159, 212);
+}
+
+#SilentModeButton:pressed{
+ background-color:rgb(45, 63, 85);
+}</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/Button_Off.png</normaloff>:/TCV3/res/icon/Button_Off.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="label_4">
+                <property name="styleSheet">
+                 <string notr="true">font: 380 12pt &quot;MiSans&quot;;
+color:white;</string>
+                </property>
+                <property name="text">
+                 <string>静音模式</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_13">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTip">
+              <string>散热器保持最大负载运行</string>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">color:white;
+background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_26">
+              <item>
+               <widget class="QPushButton" name="PerformanceModeButton">
+                <property name="minimumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#PerformanceModeButton{
+color:white;
+background-color:rgb(93, 130, 174);
+border-radius:5px;
+}
+
+#PerformanceModeButton:hover{
+ background-color:rgb(114, 159, 212);
+}
+
+#PerformanceModeButton:pressed{
+ background-color:rgb(45, 63, 85);
+}</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/Button_Off.png</normaloff>:/TCV3/res/icon/Button_Off.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="label_5">
+                <property name="styleSheet">
+                 <string notr="true">font: 380 12pt &quot;MiSans&quot;;
+color:white;</string>
+                </property>
+                <property name="text">
+                 <string>全速模式</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <spacer name="verticalSpacer_3">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>55</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="settingsPage">
+       <layout class="QVBoxLayout" name="verticalLayout_3">
+        <item>
+         <widget class="QWidget" name="settingsWidget" native="true">
+          <property name="styleSheet">
+           <string notr="true">#settingsWidget{
+background:rgb(45, 63, 85);
+}</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_7">
+           <item>
+            <widget class="QFrame" name="frame">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true"> background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_8">
+              <item>
+               <spacer name="horizontalSpacer_5">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="resetSettingsButton">
+                <property name="minimumSize">
+                 <size>
+                  <width>101</width>
+                  <height>31</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>101</width>
+                  <height>31</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#resetSettingsButton{
+color:white;
+background-color:#dc143c;
+border-radius:5px;
+}
+
+#resetSettingsButton:hover{
+ background-color:#e02b50;
+}
+
+#resetSettingsButton:pressed{
+ background-color:#b01030;
+}</string>
+                </property>
+                <property name="text">
+                 <string>恢复默认设置</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_2">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true"> background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_9">
+              <item>
+               <widget class="QPushButton" name="autoStartIconButton">
+                <property name="minimumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/autoStart.png</normaloff>:/TCV3/res/icon/autoStart.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="autoStartLabel">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#autoStartLabel{
+color:white;
+}</string>
+                </property>
+                <property name="text">
+                 <string>开机自启</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_6">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="autoStartButton">
+                <property name="minimumSize">
+                 <size>
+                  <width>50</width>
+                  <height>30</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>50</width>
+                  <height>30</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#autoStartButton{
+color:white;
+background-color:rgb(93, 130, 174);
+border-radius:15px;
+}
+
+#autoStartButton:hover{
+background-color:rgb(114, 159, 212);
+}
+
+#autoStartButton:pressed{
+background-color:rgb(45, 63, 85);
+}</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/switch-off.png</normaloff>:/TCV3/res/icon/switch-off.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>48</width>
+                  <height>48</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_3">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true"> background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_10">
+              <item>
+               <widget class="QPushButton" name="dataTxDelayIconButton">
+                <property name="minimumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>36</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true"/>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/dataTxDelay.png</normaloff>:/TCV3/res/icon/dataTxDelay.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="dataTxDelayLabel">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#dataTxDelayLabel{
+color:white;
+}</string>
+                </property>
+                <property name="text">
+                 <string>检测频率</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_8">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="addDelayButton">
+                <property name="minimumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#addDelayButton{
+color:white;
+background-color:rgb(93, 130, 174);
+border-radius:5px;
+}
+
+#addDelayButton:hover{
+background-color:rgb(114, 159, 212);
+}
+
+#addDelayButton:pressed{
+background-color:rgb(45, 63, 85);
+}</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/add.png</normaloff>:/TCV3/res/icon/add.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>24</width>
+                  <height>24</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="dataDelayLabel">
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color:white;</string>
+                </property>
+                <property name="text">
+                 <string>10</string>
+                </property>
+                <property name="textFormat">
+                 <enum>Qt::AutoText</enum>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="label">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color:white;</string>
+                </property>
+                <property name="text">
+                 <string>秒/次</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="minusButton">
+                <property name="minimumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#minusButton{
+color:white;
+background-color:rgb(93, 130, 174);
+border-radius:5px;
+}
+
+#minusButton:hover{
+background-color:rgb(114, 159, 212);
+}
+
+#minusButton:pressed{
+background-color:rgb(45, 63, 85);
+}</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/minus.png</normaloff>:/TCV3/res/icon/minus.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>24</width>
+                  <height>24</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_7">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="dataTxDelayButton">
+                <property name="minimumSize">
+                 <size>
+                  <width>50</width>
+                  <height>30</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>50</width>
+                  <height>30</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#dataTxDelayButton{
+color:white;
+background-color:rgb(93, 130, 174);
+border-radius:10px;
+}
+
+#dataTxDelayButton:hover{
+background-color:rgb(114, 159, 212);
+}
+
+#dataTxDelayButton:pressed{
+background-color:rgb(45, 63, 85);
+}</string>
+                </property>
+                <property name="text">
+                 <string>应用</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <spacer name="verticalSpacer">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="aboutPage">
+       <layout class="QVBoxLayout" name="verticalLayout_4">
+        <item>
+         <widget class="QWidget" name="aboutWidget" native="true">
+          <property name="styleSheet">
+           <string notr="true">#aboutWidget{
+background:rgb(45, 63, 85);
+}</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_6">
+           <item>
+            <widget class="QFrame" name="frame_4">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true"> background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_11">
+              <item>
+               <widget class="QPushButton" name="aboutIAppIcon">
+                <property name="enabled">
+                 <bool>true</bool>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/TreeNetWork.png</normaloff>:/TCV3/res/icon/TreeNetWork.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_10">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QLabel" name="IconLabel">
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color:white;</string>
+                </property>
+                <property name="text">
+                 <string>TemperatureControlV3</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_9">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_5">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true"> background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_12">
+              <item>
+               <widget class="QPushButton" name="aboutVersionIcon">
+                <property name="minimumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/version_line.png</normaloff>:/TCV3/res/icon/version_line.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="IconLabel_3">
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color:white;</string>
+                </property>
+                <property name="text">
+                 <string>版本</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_12">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>30</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QLabel" name="aboutVersionLabel">
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color:white;</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_11">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_6">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true"> background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_13">
+              <item>
+               <widget class="QPushButton" name="aboutVersionIcon_2">
+                <property name="minimumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/github-line.png</normaloff>:/TCV3/res/icon/github-line.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="IconLabel_4">
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color:white;</string>
+                </property>
+                <property name="text">
+                 <string>支持</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_13">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>30</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="supportButton">
+                <property name="minimumSize">
+                 <size>
+                  <width>100</width>
+                  <height>25</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#supportButton{
+color:white;
+background-color:rgb(93, 130, 174);
+border-radius:5px;
+}
+
+#supportButton:hover{
+background-color:rgb(114, 159, 212);
+}
+
+#supportButton:pressed{
+background-color:rgb(45, 63, 85);
+}</string>
+                </property>
+                <property name="text">
+                 <string>Ankali-Aylina</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_14">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_7">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true"> background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_14">
+              <item>
+               <widget class="QPushButton" name="aboutVersionIcon_3">
+                <property name="minimumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/updataLog.png</normaloff>:/TCV3/res/icon/updataLog.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="IconLabel_5">
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color:white;</string>
+                </property>
+                <property name="text">
+                 <string>更新</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_15">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>30</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="updataLogButton">
+                <property name="minimumSize">
+                 <size>
+                  <width>100</width>
+                  <height>25</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">#updataLogButton{
+color:white;
+background-color:rgb(93, 130, 174);
+border-radius:5px;
+}
+
+#updataLogButton:hover{
+background-color:rgb(114, 159, 212);
+}
+
+#updataLogButton:pressed{
+background-color:rgb(45, 63, 85);
+}</string>
+                </property>
+                <property name="text">
+                 <string>查看更新日志</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_16">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_9">
+             <property name="minimumSize">
+              <size>
+               <width>540</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>49</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>MiSans</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::NoContextMenu</enum>
+             </property>
+             <property name="toolTipDuration">
+              <number>0</number>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
+             <property name="styleSheet">
+              <string notr="true"> background-color:rgb(73, 102, 136);
+border-radius: 5px;</string>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_15">
+              <item>
+               <widget class="QPushButton" name="aboutVersionIcon_4">
+                <property name="minimumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset resource="TCV3.qrc">
+                  <normaloff>:/TCV3/res/icon/TreeNetWork_128.png</normaloff>:/TCV3/res/icon/TreeNetWork_128.png</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>32</width>
+                  <height>32</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="IconLabel_6">
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color:white;</string>
+                </property>
+                <property name="text">
+                 <string>感谢</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_17">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>30</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QLabel" name="label_7">
+                <property name="font">
+                 <font>
+                  <family>MiSans</family>
+                  <pointsize>12</pointsize>
+                 </font>
+                </property>
+                <property name="toolTip">
+                 <string>啊~真的Rich!</string>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color:white;</string>
+                </property>
+                <property name="text">
+                 <string>cyjycx的资金支持！</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_18">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <spacer name="verticalSpacer_4">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+    <item row="0" column="1">
+     <widget class="QLabel" name="titleLabel">
+      <property name="font">
+       <font>
+        <family>MiSans</family>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">#titleLabel{
+ color:white
+}</string>
+      </property>
+      <property name="text">
+       <string>TCV3</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="4">
+     <spacer name="horizontalSpacer">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item row="0" column="0">
+     <widget class="QLabel" name="iconLabel">
+      <property name="text">
+       <string/>
+      </property>
+      <property name="pixmap">
+       <pixmap resource="TCV3.qrc">:/TCV3/res/icon/TreeNetWork.png</pixmap>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="0" colspan="2">
+     <widget class="QWidget" name="centrolwidget" native="true">
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="QPushButton" name="homeButton">
+         <property name="minimumSize">
+          <size>
+           <width>86</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <family>MiSans</family>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">#homeButton{
+color:white;
+background-color:rgb(93, 130, 174);
+border-radius:5px;
+}
+
+#homeButton:hover{
+ background-color:rgb(114, 159, 212);
+}
+
+#homeButton:pressed{
+ background-color:rgb(45, 63, 85);
+}</string>
+         </property>
+         <property name="text">
+          <string>首页</string>
+         </property>
+         <property name="icon">
+          <iconset resource="TCV3.qrc">
+           <normaloff>:/TCV3/res/icon/home_fill.png</normaloff>:/TCV3/res/icon/home_fill.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>30</width>
+           <height>30</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="settingsButton">
+         <property name="minimumSize">
+          <size>
+           <width>86</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <family>MiSans</family>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">#settingsButton{
+color:white;
+background-color:rgb(93, 130, 174);
+border-radius:5px;
+}
+
+#settingsButton:hover{
+ background-color:rgb(114, 159, 212);
+}
+
+#settingsButton:pressed{
+ background-color:rgb(45, 63, 85);
+}</string>
+         </property>
+         <property name="text">
+          <string>设置</string>
+         </property>
+         <property name="icon">
+          <iconset resource="TCV3.qrc">
+           <normaloff>:/TCV3/res/icon/settings_line.png</normaloff>:/TCV3/res/icon/settings_line.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>30</width>
+           <height>30</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="aboutButton">
+         <property name="minimumSize">
+          <size>
+           <width>86</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <family>MiSans</family>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">#aboutButton{
+color:white;
+background-color:rgb(93, 130, 174);
+border-radius:5px;
+}
+
+#aboutButton:hover{
+ background-color:rgb(114, 159, 212);
+}
+
+#aboutButton:pressed{
+ background-color:rgb(45, 63, 85);
+}</string>
+         </property>
+         <property name="text">
+          <string>关于</string>
+         </property>
+         <property name="icon">
+          <iconset resource="TCV3.qrc">
+           <normaloff>:/TCV3/res/icon/about_line.png</normaloff>:/TCV3/res/icon/about_line.png</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>30</width>
+           <height>30</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <resources>
+  <include location="TCV3.qrc"/>
+  <include location="TCV3.qrc"/>
+ </resources>
+ <connections/>
+</ui>

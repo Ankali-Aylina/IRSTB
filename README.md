@@ -1,67 +1,118 @@
----
-title: 智能散热小桌板
-date: 2025-05-05 13:45:41
-tags: [CW32L010,蓝牙,散热小桌板]
-categories: [嵌入式,CW32L010,智能散热小桌板]
----
-# 智能散热小桌板
+# 智能散热小桌板 / TemperatureControlV3
 
-## 项目简介
-~~智能散热小桌板是一款基于CW32L010芯片开发的智能散热小桌板。它集成了蓝牙、风扇、LED灯功能，可以实时监测桌面的温湿度，并根据温度自动调节风扇转速，为用户提供舒适的使用环境。~~
-简单来说就是能根据电脑温度自动调节风扇转速的散热小桌板。
+[![License](https://img.shields.io/github/license/Ankali-Aylina/IRSTB)](LICENSE.txt)
+[![Build](https://github.com/Ankali-Aylina/IRSTB/actions/workflows/build.yml/badge.svg)](https://github.com/Ankali-Aylina/IRSTB/actions)
+
+简单说就是能根据电脑温度自动调节风扇转速的散热小桌板。
 
 ## 功能特点
-- 实时监测电脑的温度
+
+- 实时监测 CPU / GPU 温度（Intel + AMD + NVIDIA）
 - 根据温度自动调节风扇转速
-- 使用蓝牙连接
+- 蓝牙 BLE 连接（DX-BT24-T 模块）
+- 开机自启、最小化托盘
+- 现代化深色 UI 界面
+- PawnIO / AMDRyzenMaster 双驱动支持
 
 ## 硬件设计
-- 主控芯片：CW32L010
-- 蓝牙模块：DX-BT24-T
-- 风扇：12V直流风扇(利民的12025风扇)
+
+| 组件 | 型号 |
+|------|------|
+| 主控芯片 | CW32L010 |
+| 蓝牙模块 | DX-BT24-T |
+| 风扇 | 12V 直流（利民 TL-C12） |
 
 ## 成品展示
-- ![小桌板展示](./Pictures/001.jpg "小桌板成品")
-- ![温度控制板](./Pictures/002.jpg)
+
+![小桌板成品](./Pictures/001.jpg)
+![温度控制板](./Pictures/002.jpg)
 
 ---
 
-## TCV3更新日志
+## 系统要求（TCV3 上位机）
 
-### V3.3.2.3
-- 修复了UI图标显示错误的问题。
----
-### V3.3.2.2
-- 重新调整了UI界面。
-- 优化了设备检测逻辑。
-- 修复了一些已知的BUG。
----
-### V3.3.2.1
-- 添加了更新日志页面。
----
-### V3.3.2.0
-- 优化温度检测和风扇控制逻辑。
----
-### V3.3.1.0
-- 添加了安装程序，方便部署。
----
-### V3.3.0.0
-- 重构了BLE蓝牙库，实现轻量化运行。
----
-### V3.2.0.0
-- 添加了AMD驱动兼容AMD CPU设备。
----
-### V3.1.0.0
-- 移除了LibreHardwareMonitor
-- 添加了CPU类型识别逻辑，更好的针对不同的CPU进行温度检测。
-- 添加了WinRing0用于获取IntelCPU温度。
----
-### V3.0.0.0
-- 再次重构项目，更新项目框架为QT6框架。
----
-### V2.0.0.0
-- 添加UI界面使用C#语言重构了整个项目，添加开源的LibreHardwareMonitor用于更好的监测CPU与GPU温度。
----
-### V1.0.0.0
-- 使用命令行完成基础控制。
----
+| 要求 | 说明 |
+|------|------|
+| 操作系统 | Windows 10/11 64-bit |
+| 运行时 | [VC Redist x64](https://aka.ms/vs/17/release/vc_redist.x64.exe) |
+| CPU | Intel (需 PawnIO 驱动) / AMD (需 AMDRyzenMaster 驱动) |
+| GPU | NVIDIA (nv_dll) |
+
+## 快速开始
+
+### 下载安装
+
+1. 前往 [Releases](https://github.com/Ankali-Aylina/IRSTB/releases) 下载最新安装包
+2. 运行 `TemperatureControlV3_vX.X.X.X_Setup.exe`
+3. 首次启动会自动提示安装所需驱动
+4. 连接蓝牙设备后即可使用
+
+### 本地构建
+
+```powershell
+# 环境要求：Visual Studio 2022 + Qt 6.11.1 msvc2022_64 + Inno Setup 7
+
+# 一键编译+打包
+.\package.ps1
+
+# 跳过编译直接打包（需已构建 Release）
+.\package.ps1 -SkipBuild
+
+# 编译安装包
+& "C:\Program Files (x86)\Inno Setup 7\ISCC.exe" installer.iss
+```
+
+## 项目结构
+
+```
+TemperatureControlV3/
+├── ApplicationBootstrap    # 启动引导（UAC 提权、资源提取、驱动检测）
+├── TCV3                    # 主窗口 + UI 逻辑
+├── TCCore                  # 温度采集 + 风扇控制（独立线程）
+├── BLEThread               # 蓝牙 LE 通信（独立线程）
+├── AppModuleManager        # 模块生命周期管理
+├── ResourceExtractor       # 从 QRC 提取运行时资源到 %TEMP%
+├── NativeLibraryLoader     # DLL 加载封装
+├── PawnIoDriverManager     # PawnIO 驱动检测与安装
+├── IniManagement            # INI 配置读写（QSettings）
+├── LogManagement           # 日志管理（全局单例）
+├── installer.iss           # Inno Setup 安装脚本
+├── package.ps1             # 一键打包脚本
+└── res/                    # 资源文件（DLL、驱动、图标）
+```
+
+## 技术栈
+
+| 技术 | 版本 |
+|------|------|
+| C++ | 20 |
+| Qt | 6.11.1 (Core/Gui/Widgets/Concurrent/Network/Svg) |
+| Visual Studio | 2022 (v145, MSVC) |
+| Inno Setup | 7.x |
+| 驱动 | PawnIO / AMDRyzenMasterV27 |
+
+## 更新日志
+
+参见 [res/updatalog.md](res/updatalog.md) 或程序内更新日志页面。
+
+| 版本 | 主要变更 |
+|------|----------|
+| **v3.4.0.0** | 修复大量 bug，更换 Intel 温度读取驱动，更新 UI |
+| v3.3.2.x | UI 优化、设备检测优化、更新日志页面 |
+| v3.3.0.0 | BLE 蓝牙库重构，轻量化运行 |
+| v3.2.0.0 | 添加 AMD 驱动兼容 |
+| v3.1.0.0 | 移除 LibreHardwareMonitor，添加 CPU 类型识别 |
+| v3.0.0.0 | 重构为 Qt6 框架 |
+| v2.0.0.0 | C# 重构，LibreHardwareMonitor 集成 |
+| v1.0.0.0 | 命令行基础控制 |
+
+## 贡献者
+
+| 贡献者 | 角色 |
+|--------|------|
+| [Ankali-Aylina](https://github.com/Ankali-Aylina) | 项目作者，全栈开发 |
+| [DeepSeek V4 Pro](https://chat.deepseek.com) | AI 编程助手，代码生成与问题诊断 |
+
+## 许可证
+
+本项目采用 [MIT License](LICENSE.txt)。

@@ -1,5 +1,11 @@
 ﻿#include "LogManagement.h"
 
+LogManagement& LogManagement::instance()
+{
+	static LogManagement inst;
+	return inst;
+}
+
 LogManagement::LogManagement(QObject* parent)
 	: QObject(parent)
 {
@@ -40,7 +46,7 @@ void LogManagement::logMessage(const QString& message, LogLevel level) {
 	// 文件输出
 	if (!m_logFile.isOpen()) {
 		m_logFile.setFileName(m_logPath);
-		m_logFile.open(QIODevice::Append | QIODevice::Text);
+		(void)m_logFile.open(QIODevice::Append | QIODevice::Text);
 	}
 	if (m_logFile.size() > 5 * 1024 * 1024) { // 5MB轮转
 		rotateLogs();
@@ -53,7 +59,10 @@ void LogManagement::logMessage(const QString& message, LogLevel level) {
 
 void LogManagement::rotateLogs() {
 	m_logFile.close();
-	QFile::rename(m_logPath,
-		QDateTime::currentDateTime().toString("'app_'yyyyMMdd_hhmmss'.log'"));
-	m_logFile.open(QIODevice::Append | QIODevice::Text);
+	if (!QFile::rename(m_logPath,
+		QDateTime::currentDateTime().toString("'app_'yyyyMMdd_hhmmss'.log'")))
+	{
+		qWarning() << "Log rotation rename failed";
+	}
+	(void)m_logFile.open(QIODevice::Append | QIODevice::Text);
 }

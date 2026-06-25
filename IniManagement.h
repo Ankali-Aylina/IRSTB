@@ -9,38 +9,19 @@
 #include <QMutex>
 
 #include <LogManagement.h>
+#include "IConfigProvider.h"
 
-class IniManagement : public QObject
+class IniManagement : public QObject, public IConfigProvider
 {
 	Q_OBJECT
 
 public:
 	static IniManagement& instance();
+	explicit IniManagement(QObject* parent = nullptr);
 	~IniManagement();
-
-	/// <summary>
-	/// ini文件数据
-	/// </summary>
-	struct IniFile_Data
-	{
-		/// <summary>
-		/// ini文件状态
-		/// </summary>
-		int IniFile_Status = 0;
-
-		/// <summary>
-		/// ini文件路径
-		/// </summary>
-		QString IniFilePath;
-	};
-	IniFile_Data IniFileData;
-
-private:
-	IniManagement(QObject* parent = nullptr); // 私有构造函数
 
 	QScopedPointer<QSettings> m_settings; // 使用智能指针管理 QSettings
 	QString m_path;
-	LogManagement* m_logIniMgmt;
 
 	/*mutable 的作用：允许在 const 成员函数中修改成员变量。
 	线程安全：QMutex 的锁定和解锁属于“物理状态”修改，
@@ -48,47 +29,23 @@ private:
 	mutable QMutex m_iniMutex;
 
 public slots:
-	/// <summary>
-	/// 写入配置文件
-	/// </summary>
-	/// <param name="section"> 配置文件中的节名 </param>
-	/// <param name="key"> 配置文件中的键名 </param>
-	/// <param name="value"> 配置文件中的键值 </param>
-	void write(const QString& section, const QString& key, const QVariant& value);
+	/// <summary>写入配置文件（IConfigProvider 实现）</summary>
+	void write(const QString& section, const QString& key, const QVariant& value) override;
 
-	/// <summary>
-	/// 读取配置文件
-	/// </summary>
-	/// <param name="section"> 配置文件中的节名 </param>
-	/// <param name="key"> 配置文件中的键名 </param>
-	/// <returns> 配置文件中的键值 </returns>
-	QVariant read(const QString& section, const QString& key) const;
+	/// <summary>读取配置文件（IConfigProvider 实现）</summary>
+	QVariant read(const QString& section, const QString& key) const override;
 
-	/// <summary>
-	/// 初始化配置文件节
-	/// </summary>
-	/// <param name="section"> 配置文件中的节名</param>
-	/// <param name="status"> 配置文件节的状态 </param>
-	void InitSection(const QString& section, const QString& status);
+	/// <summary>初始化配置节</summary>
+	void initSection(const QString& section, const QString& status) override;
 
-	/// <summary>
-	/// 判断ini文件是否初始化
-	/// </summary>
-	/// <param name="iniFilePath"> ini文件路径 </param>
-	/// <returns></returns>
-	bool IsInit(const QString& section) const;
+	/// <summary>判断配置节是否已初始化</summary>
+	bool isInitialized(const QString& section) const override;
 
-	/// <summary>
-	/// 判断ini文件是否存在
-	/// </summary>
-	/// <param name="iniFilePath"> ini文件路径 </param>
-	/// <returns></returns>
-	bool IsExist() const;
+	/// <summary>判断配置文件是否存在</summary>
+	bool fileExists() const override;
 
-	/// <summary>
-	/// 删除ini文件
-	/// </summary>
-	void deleteIniFile();
+	/// <summary>删除配置文件</summary>
+	void deleteFile() override;
 
 	/// <summary>
 	/// 设置ini文件路径

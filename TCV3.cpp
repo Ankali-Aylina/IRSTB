@@ -1,170 +1,278 @@
 ﻿#include "TCV3.h"
+#include <QDesktopServices>
+#include <QDir>
+#include <QMessageBox>
+#include <QProcess>
+#include <QSettings>
+#include <QUrl>
+#include <windows.h>
 
 TCV3::TCV3(QWidget* parent)
 	: QMainWindow(parent),
 	m_leftMousePressed(false),
-	m_exitWidgets(nullptr)
+	m_exitWidgets(nullptr),
+	m_moduleManager(nullptr)
 {
 	ui.setupUi(this);
 
-	o_Log = new LogManagement(this);
-	connect(this, &TCV3::logMessage, o_Log, &LogManagement::logMessage);
+	// --- 现代化全局样式表 ---
+	qApp->setStyleSheet(R"(
+		/* ========== 全局基础 ========== */
+		* {
+			font-family: "MiSans", "Microsoft YaHei", "Segoe UI", sans-serif;
+		}
 
-	//初始化配置文件
+		QToolTip {
+			background: #2a3040;
+			color: #e0e0e0;
+			border: 1px solid #5b8ec4;
+			border-radius: 4px;
+			padding: 4px 8px;
+			font-size: 12px;
+		}
+
+		/* ========== 滚动条 ========== */
+		QScrollBar:vertical {
+			background: #1e2d3d;
+			width: 8px;
+			border-radius: 4px;
+		}
+		QScrollBar::handle:vertical {
+			background: #5b8ec4;
+			border-radius: 4px;
+			min-height: 20px;
+		}
+		QScrollBar::handle:vertical:hover {
+			background: #6ea3d9;
+		}
+		QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+			height: 0;
+		}
+
+		/* ========== 按钮通用 ========== */
+		QPushButton {
+			color: #e8e8e8;
+			background: #5b8ec4;
+			border: none;
+			border-radius: 6px;
+			padding: 4px 12px;
+		}
+		QPushButton:hover {
+			background: #6ea3d9;
+		}
+		QPushButton:pressed {
+			background: #3d5575;
+		}
+
+		/* ========== 标签 ========== */
+		QLabel {
+			color: #e8e8e8;
+			background: transparent;
+		}
+
+		/* ========== 进度条通用 ========== */
+		QProgressBar {
+			border: none;
+			border-radius: 6px;
+			text-align: center;
+			color: rgba(255,255,255,0);
+			background: #1a2d3f;
+			height: 24px;
+		}
+		QProgressBar::chunk {
+			border-radius: 6px;
+			background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+				stop:0 #4ecdc4, stop:0.5 #ffd93d, stop:1 #e04050);
+		}
+
+		/* ========== 输入框 ========== */
+		QLineEdit, QTextEdit, QPlainTextEdit {
+			background: #1a2d3f;
+			color: #e8e8e8;
+			border: 1px solid #3d5575;
+			border-radius: 6px;
+			padding: 6px 10px;
+			selection-background-color: #5b8ec4;
+		}
+		QLineEdit:focus, QTextEdit:focus {
+			border-color: #5b8ec4;
+		}
+
+		/* ========== 消息框 ========== */
+		QMessageBox {
+			background: #2a3f5f;
+			color: #e8e8e8;
+		}
+		QMessageBox QLabel {
+			color: #e8e8e8;
+		}
+		QMessageBox QPushButton {
+			min-width: 80px;
+			min-height: 28px;
+			background: #5b8ec4;
+			border-radius: 6px;
+			color: #e8e8e8;
+		}
+		QMessageBox QPushButton:hover {
+			background: #6ea3d9;
+		}
+	)");
+
+	// --- 日志管理（全局单例） ---
+	connect(this, &TCV3::logMessage, &LogManagement::instance(), &LogManagement::logMessage);
+
+	// --- 配置提供者（替代全局单例，注入到所有子系统） ---
+	auto* iniConfig = new IniManagement(this);
+	m_config = iniConfig;
+
+	// --- 模块管理器：统一创建、初始化、启动所有子系统 ---
+	m_moduleManager = new AppModuleManager(this);
+
+	auto* tcc = m_moduleManager->registerModule<TCCore>(m_config);
+	auto* ble = m_moduleManager->registerModule<BLEThread>(m_config);
+
+	m_moduleManager->initializeAll();
+	m_moduleManager->startAll();
+
+	// --- 跨模块连接：TCCore 输出控制数据 -> BLE 风扇控制 ---
+	m_fanControlConnection = connect(tcc, &TCCore::controlDataUpdated,
+	                                  ble, &BLEThread::controlFan,
+	                                  Qt::QueuedConnection);
+
+	// TCCore 连接状态检测 -> BLE 连接状态更新
+	connect(tcc, &TCCore::updateConnectionStatus, ble, &BLEThread::updateConnectionStatus,
+	        Qt::QueuedConnection);
+
+	// --- 模块 -> UI 连接 ---
+	connect(tcc, &TCCore::cpuTemperatureUpdated, this, &TCV3::onCpuTemperatureUpdated);
+	connect(tcc, &TCCore::gpuTemperatureUpdated, this, &TCV3::onGpuTemperatureUpdated);
+
+	// --- 蓝牙状态呈现器 ---
+	m_blePresenter = new BluetoothStatusPresenter(
+		ui.BLELabel, ui.BLEButton, ui.BLEProgressBar,
+		QIcon(":/TCV3/res/icon/BLE_On.png"),
+		QIcon(":/TCV3/res/icon/BLE_Off.png"),
+		QIcon(":/TCV3/res/icon/BLE_Error.png"),
+		this);
+
+	connect(ble, &BLEThread::bleScanStarted, m_blePresenter, &BluetoothStatusPresenter::onScanStarted);
+	connect(ble, &BLEThread::bleScanTimeout, m_blePresenter, &BluetoothStatusPresenter::onScanTimeout);
+	connect(ble, &BLEThread::connectionInProgress, m_blePresenter, &BluetoothStatusPresenter::onConnecting);
+	connect(ble, &BLEThread::connected, m_blePresenter, &BluetoothStatusPresenter::onConnected);
+	connect(ble, &BLEThread::connectionFailed, m_blePresenter, &BluetoothStatusPresenter::onConnectionFailed);
+	connect(ble, &BLEThread::disconnected, m_blePresenter, &BluetoothStatusPresenter::onDisconnected);
+
+	// --- UI -> 模块 连接（风扇模式） ---
+	connect(this, &TCV3::setFanAutoMode, ble, &BLEThread::autoMode);
+	connect(this, &TCV3::setFanSilentMode, ble, &BLEThread::silentMode);
+	connect(this, &TCV3::setFanPerformanceMode, ble, &BLEThread::performanceMode);
+
+	// --- UI -> 模块 连接（延时设置） ---
+	connect(this, &TCV3::setDataTrDelayUpdataFlag, tcc, &TCCore::setDataTrDelayUpdataFlag);
+
+	// --- 以下为纯 UI 初始化 ---
 	initConfigFile();
+	preloadIcons();
 
-	//初始化自启动界面
+	// 加载温度警告阈值（与 TemperatureConfig 保持同步）
+	{
+		QVariant v = m_config->read("TC", "WarningCpu");
+		if (v.isValid()) m_warningCpuThreshold = v.toInt();
+		v = m_config->read("TC", "WarningGpu");
+		if (v.isValid()) m_warningGpuThreshold = v.toInt();
+	}
+
 	autoStartUiUpdata();
-
-	//初始化延时设置
 	dataDelay();
+
 	connect(ui.addDelayButton, &QPushButton::clicked, this, &TCV3::addDelay);
 	connect(ui.minusButton, &QPushButton::clicked, this, &TCV3::minusDelay);
 
-	setWindowFlags(Qt::FramelessWindowHint);    //隐藏标题栏（无边框）
-	setAttribute(Qt::WA_StyledBackground);      //启用样式背景绘制
-	setAttribute(Qt::WA_TranslucentBackground); //背景透明
+	setWindowFlags(Qt::FramelessWindowHint);
+	setAttribute(Qt::WA_StyledBackground);
+	setAttribute(Qt::WA_TranslucentBackground);
 	setAttribute(Qt::WA_Hover);
+	setWindowIcon(QIcon(":/TCV3/res/icon/TreeNetWork.png"));
 
-	setWindowIcon(QIcon(":/TCV3/res/icon/TreeNetWork.png")); // 设置窗口图标
-
-	// 创建系统托盘图标
+	// 系统托盘
 	trayIcon = new QSystemTrayIcon(this);
 	QIcon icon(":/TCV3/res/icon/TrayIcon.png");
 	trayIcon->setIcon(icon);
-	// 设置鼠标悬停提示
 	trayIcon->setToolTip("右键打开菜单");
 	trayIcon->setVisible(true);
 
-	// 创建托盘菜单
 	QMenu* trayIconMenu = new QMenu(this);
 	QAction* restoreAction = new QAction("恢复窗口", this);
 	QAction* quitAction = new QAction("退出程序", this);
-
-	//从托盘还原
 	connect(restoreAction, &QAction::triggered, this, &TCV3::showNormal);
 	connect(trayIcon, &QSystemTrayIcon::activated, this, &TCV3::showNormal);
-	//退出程序
 	connect(quitAction, &QAction::triggered, qApp, &QCoreApplication::quit);
-
-	//将动作添加到托盘菜单
 	trayIconMenu->addAction(restoreAction);
 	trayIconMenu->addAction(quitAction);
 	trayIcon->setContextMenu(trayIconMenu);
 
-	//设置版本号
 	ui.aboutVersionLabel->setText(QString("V") + QString("3.3.2.3"));
 
-	// 初始化菜单栏图标缓存
-	m_buttonIcons = {
-		{ QIcon(":/TCV3/res/icon/home_fill.png"), QIcon(":/TCV3/res/icon/home_line.png") },
-		{ QIcon(":/TCV3/res/icon/settings_fill.png"), QIcon(":/TCV3/res/icon/settings_line.png") },
-		{ QIcon(":/TCV3/res/icon/about_fill.png"), QIcon(":/TCV3/res/icon/about_line.png") }
-	};
+	// --- 页面切换动画初始化 ---
+	m_pageOpacityEffect = new QGraphicsOpacityEffect(this);
+	m_pageOpacityEffect->setOpacity(1.0);
+	ui.stackedWidget->setGraphicsEffect(m_pageOpacityEffect);
 
-	// 初始化菜单栏按钮集合（顺序与stackedWidget索引对应）
-	m_buttons = {
-		ui.homeButton, // 0 index
-		ui.settingsButton, // 1 index
-		ui.aboutButton // 2 index
-	};
-
-	///图标刷新 （Lambda直接连接）
+	// 菜单栏按钮
+	m_buttons = { ui.homeButton, ui.settingsButton, ui.aboutButton };
+	m_fanModeButtons = { ui.AutoModeButton, ui.SilentModeButton, ui.PerformanceModeButton };
 	auto createConnection = [this](QPushButton* btn, int index) {
 		connect(btn, &QPushButton::clicked, this, [this, index]() {
-			ui.stackedWidget->setCurrentIndex(index);
-			updateButtonIcon();
-			});
-		};
+			animatePageSwitch(index);
+		});
+	};
 	createConnection(ui.homeButton, 0);
 	createConnection(ui.settingsButton, 1);
 	createConnection(ui.aboutButton, 2);
 
-	///窗口最小化隐藏到托盘
-	connect(ui.minimizeButton, &QPushButton::clicked, this, &TCV3::hide);
-
-	///窗口最大化
+	connect(ui.minimizeButton, &QPushButton::clicked, this, [this]() {
+		hide();
+		// 最小化时裁剪工作集，释放物理内存（虚拟内存不变，页面按需换回）
+		SetProcessWorkingSetSize(GetCurrentProcess(), (SIZE_T)-1, (SIZE_T)-1);
+	});
 	connect(ui.maximizeButton, &QPushButton::clicked, this, &TCV3::showMaximizedOrNormal);
 
-	///退出提示
+	// 退出提示
 	m_exitWidgets = new ExitWidgets();
 	connect(ui.closeButton, &QPushButton::clicked, m_exitWidgets, &QDialog::open);
 
-	///TC核心功能
-	o_TCCore = new TCCore;
-	q_TCCore = new QThread;
-	o_TCCore->moveToThread(q_TCCore);
-	q_TCCore->start();
-	connect(q_TCCore, &QThread::started, o_TCCore, &TCCore::run);
+	// 蓝牙重连
+	connect(ui.BLEButton, &QPushButton::clicked, ble, &BLEThread::reconnectDevice);
+	connect(ui.BLEButton, &QPushButton::clicked, m_blePresenter, &BluetoothStatusPresenter::onReconnect);
+	connect(ui.BLEButton, &QPushButton::clicked, this, &TCV3::autoMode);
 
-	//温度更新ui
-	connect(o_TCCore, &TCCore::cpuTemperatureUpdated, this, &TCV3::onCpuTemperatureUpdated);
-	connect(o_TCCore, &TCCore::gpuTemperatureUpdated, this, &TCV3::onGpuTemperatureUpdated);
-
-	///蓝牙功能
-	o_BLEThread = new BLEThread;
-	q_BLEThread = new QThread;
-	o_BLEThread->moveToThread(q_BLEThread);
-	q_BLEThread->start();
-	connect(q_BLEThread, &QThread::started, o_BLEThread, &BLEThread::run);
-
-	//数据发送
-	m_fanControlConnection = connect(o_TCCore, &TCCore::controlDataUpdated, o_BLEThread, &BLEThread::controlFan);
-
-	//重新连接蓝牙
-	connect(ui.BLEButton, &QPushButton::clicked, o_BLEThread, &BLEThread::reconnectDevice);
-	connect(ui.BLEButton, &QPushButton::clicked, this, &TCV3::bleReconnectUi);
-
-	///蓝牙扫描更新蓝牙ui
-	connect(o_BLEThread, &BLEThread::bleScanStarted, this, &TCV3::bleScanStarting);
-	connect(o_BLEThread, &BLEThread::bleScanTimeout, this, &TCV3::bleScanTimeout);
-	connect(o_BLEThread, &BLEThread::connectionInProgress, this, &TCV3::bleConnecting);
-	connect(o_BLEThread, &BLEThread::connected, this, &TCV3::bleConnected);
-	connect(o_BLEThread, &BLEThread::connectionFailed, this, &TCV3::bleConnectionFailed);
-	connect(o_BLEThread, &BLEThread::disconnected, this, &TCV3::bleDisconnected);
-
-	//自动模式
+	// 风扇模式按钮
 	connect(ui.AutoModeButton, &QPushButton::clicked, this, &TCV3::autoMode);
-	connect(this, &TCV3::setFanAutoMode, o_BLEThread, &BLEThread::autoMode);
-
-	//静音模式
 	connect(ui.SilentModeButton, &QPushButton::clicked, this, &TCV3::silentMode);
-	connect(this, &TCV3::setFanSilentMode, o_BLEThread, &BLEThread::silentMode);
-
-	//全速模式
 	connect(ui.PerformanceModeButton, &QPushButton::clicked, this, &TCV3::performanceMode);
-	connect(this, &TCV3::setFanPerformanceMode, o_BLEThread, &BLEThread::performanceMode);
 
-	//恢复配置
+	// 其他按钮
 	connect(ui.resetSettingsButton, &QPushButton::clicked, this, &TCV3::resetSettings);
-
-	//自启按钮
 	connect(ui.autoStartButton, &QPushButton::clicked, this, &TCV3::autoStart);
-
-	//数据延时更新按钮
 	connect(ui.dataTxDelayButton, &QPushButton::clicked, this, &TCV3::setdataDelay);
-	connect(this, &TCV3::setDataTrDelayUpdataFlag, o_TCCore, &TCCore::setDataTrDelayUpdataFlag);
 
-	//支持按钮
 	connect(ui.supportButton, &QPushButton::clicked, []() {
-		QDesktopServices::openUrl(QUrl("https://ankali-aylina.github.io/2025/05/05/IRSTB/")); // 直接打开链接
-		});
+		QDesktopServices::openUrl(QUrl("https://ankali-aylina.github.io/2025/05/05/IRSTB/"));
+	});
 
-	//更新日志按钮
 	m_updateLogDialog = new UpdateLogDialog(this);
 	connect(ui.updataLogButton, &QPushButton::clicked, m_updateLogDialog, &QDialog::open);
 }
 
 TCV3::~TCV3()
 {
+	if (m_moduleManager)
+	{
+		m_moduleManager->stopAll();
+	}
 	delete trayIcon;
 	delete m_exitWidgets;
 	delete m_updateLogDialog;
-	delete o_TCCore;
-	delete o_BLEThread;
-	q_BLEThread->quit();
-	q_BLEThread->wait(2000);
-	delete q_BLEThread;
 }
 
 void TCV3::mousePressEvent(QMouseEvent* event)
@@ -207,37 +315,62 @@ void TCV3::mouseReleaseEvent(QMouseEvent* event)
 	m_leftMousePressed = false;//释放鼠标，标志位置为假
 }
 
-bool TCV3::isAppRunning(const QString& lockName) {
-	QString tempDir = QDir::tempPath();
-	QLockFile lockFile(tempDir + "/" + lockName + ".lock");
+/// <summary>
+/// 预加载图标
+/// </summary>
+void TCV3::preloadIcons()
+{
+	// 初始化菜单栏图标缓存
+	m_buttonIcons = {
+		{ QIcon(":/TCV3/res/icon/home_fill.png"), QIcon(":/TCV3/res/icon/home_line.png") },
+		{ QIcon(":/TCV3/res/icon/settings_fill.png"), QIcon(":/TCV3/res/icon/settings_line.png") },
+		{ QIcon(":/TCV3/res/icon/about_fill.png"), QIcon(":/TCV3/res/icon/about_line.png") }
+	};
 
-	if (!lockFile.tryLock(100)) { // 100ms 尝试加锁
-		return true;
-	}
+	m_cpuNormalIcon = QIcon(":/TCV3/res/icon/cpuTemp.png");
+	m_cpuWarningIcon = QIcon(":/TCV3/res/icon/cpuTemp-red.png");
+	m_gpuNormalIcon = QIcon(":/TCV3/res/icon/gpuTemp.png");
+	m_gpuWarningIcon = QIcon(":/TCV3/res/icon/gpuTemp-red.png");
 
-	return false;
+	m_buttonOnIcon = QIcon(":/TCV3/res/icon/Button_On.png");
+	m_buttonOffIcon = QIcon(":/TCV3/res/icon/Button_Off.png");
 }
 
-///// <summary>
-///// 更新显示页面
-///// </summary>
-//void TCV3::updateIndex()
-//{
-//	QPushButton* clickedButton = qobject_cast<QPushButton*>(sender());
-//	if (clickedButton == ui.homeButton)
-//	{
-//		ui.stackedWidget->setCurrentIndex(0);
-//	}
-//	else if (clickedButton == ui.settingsButton)
-//	{
-//		ui.stackedWidget->setCurrentIndex(1);
-//	}
-//	else if (clickedButton == ui.aboutButton)
-//	{
-//		ui.stackedWidget->setCurrentIndex(2);
-//	}
-//	updateButtonIcon();
-//}
+/// <summary>
+/// 页面切换动画（淡入淡出）
+/// </summary>
+void TCV3::animatePageSwitch(int targetIndex)
+{
+	const int currentIndex = ui.stackedWidget->currentIndex();
+	if (currentIndex == targetIndex) return;
+
+	// 先更新按钮图标（立即响应）
+	// 注意：图标根据 targetIndex 更新，因为下面会切换页面
+	for (int i = 0; i < m_buttons.size(); ++i) {
+		m_buttons[i]->setIcon(i == targetIndex ?
+			m_buttonIcons[i].active :
+			m_buttonIcons[i].inactive);
+	}
+
+	auto* fadeOut = new QPropertyAnimation(m_pageOpacityEffect, "opacity", this);
+	fadeOut->setDuration(150);
+	fadeOut->setStartValue(1.0);
+	fadeOut->setEndValue(0.0);
+	fadeOut->setEasingCurve(QEasingCurve::InOutCubic);
+
+	connect(fadeOut, &QPropertyAnimation::finished, this, [this, targetIndex]() {
+		ui.stackedWidget->setCurrentIndex(targetIndex);
+
+		auto* fadeIn = new QPropertyAnimation(m_pageOpacityEffect, "opacity", this);
+		fadeIn->setDuration(200);
+		fadeIn->setStartValue(0.0);
+		fadeIn->setEndValue(1.0);
+		fadeIn->setEasingCurve(QEasingCurve::OutCubic);
+		fadeIn->start(QAbstractAnimation::DeleteWhenStopped);
+	});
+
+	fadeOut->start(QAbstractAnimation::DeleteWhenStopped);
+}
 
 /// <summary>
 /// 更新菜单页按钮图标
@@ -252,39 +385,6 @@ void TCV3::updateButtonIcon()
 			m_buttonIcons[i].active :
 			m_buttonIcons[i].inactive);
 	}
-
-	//QIcon icon, icon_1, icon_2;
-	//if (ui.stackedWidget->currentIndex() == 0)
-	//{
-	//	icon.addFile(QString::fromUtf8(":/TCV3/res/icon/home_fill.png"));
-	//	ui.homeButton->setIcon(icon);
-
-	//	icon_1.addFile(QString::fromUtf8(":/TCV3/res/icon/settings_line.png"));
-	//	ui.settingsButton->setIcon(icon_1);
-
-	//	icon_2.addFile(QString::fromUtf8(":/TCV3/res/icon/about_line.png"));
-	//	ui.aboutButton->setIcon(icon_2);
-	//}
-	//else if (ui.stackedWidget->currentIndex() == 1)
-	//{
-	//	icon.addFile(QString::fromUtf8(":/TCV3/res/icon/settings_fill.png"));
-	//	ui.settingsButton->setIcon(icon);
-
-	//	icon_1.addFile(QString::fromUtf8(":/TCV3/res/icon/home_line.png"));
-	//	ui.homeButton->setIcon(icon_1);
-	//	icon_2.addFile(QString::fromUtf8(":/TCV3/res/icon/about_line.png"));
-	//	ui.aboutButton->setIcon(icon_2);
-	//}
-	//else if (ui.stackedWidget->currentIndex() == 2)
-	//{
-	//	icon.addFile(QString::fromUtf8(":/TCV3/res/icon/about_fill.png"));
-	//	ui.aboutButton->setIcon(icon);
-
-	//	icon_1.addFile(QString::fromUtf8(":/TCV3/res/icon/home_line.png"));
-	//	ui.homeButton->setIcon(icon_1);
-	//	icon_2.addFile(QString::fromUtf8(":/TCV3/res/icon/settings_line.png"));
-	//	ui.settingsButton->setIcon(icon_2);
-	//}
 }
 
 /// <summary>
@@ -316,177 +416,71 @@ void TCV3::showExitWidgets()
 	m_exitWidgets->show();
 }
 
-void TCV3::bleReconnectUi()
-{
-	ui.BLELabel->setText("重连中...");
-}
-
-void TCV3::bleScanStarting()
-{
-	QIcon icon;
-	icon.addFile(QString::fromUtf8(":/TCV3/res/icon/BLE_Off.png"));
-	ui.BLEButton->setIcon(icon);
-	ui.BLELabel->setText("搜索中...");
-	ui.BLEProgressBar->setMaximum(0);
-}
-
-void TCV3::bleScanTimeout()
-{
-	QIcon icon;
-	icon.addFile(QString::fromUtf8(":/TCV3/res/icon/BLE_Error.png"));
-	ui.BLEButton->setIcon(icon);
-	ui.BLELabel->setText("搜索超时");
-	ui.BLEProgressBar->setMaximum(100);
-	ui.BLEProgressBar->setValue(100);
-}
-
-void TCV3::bleConnecting()
-{
-	ui.BLELabel->setText("连接中...");
-}
-
-void TCV3::bleConnectionFailed()
-{
-	QIcon icon;
-	icon.addFile(QString::fromUtf8(":/TCV3/res/icon/BLE_Error.png"));
-	ui.BLEButton->setIcon(icon);
-	ui.BLELabel->setText("连接失败");
-	ui.BLELabel->setStyleSheet("color: #dc143c;");
-	ui.BLEProgressBar->setMaximum(100);
-	ui.BLEProgressBar->setValue(100);
-}
-
-void TCV3::bleConnected()
-{
-	QIcon icon;
-	icon.addFile(QString::fromUtf8(":/TCV3/res/icon/BLE_On.png"));
-	ui.BLEButton->setIcon(icon);
-	ui.BLELabel->setText("连接完成");
-	ui.BLELabel->setStyleSheet("color: white");
-	ui.BLEProgressBar->setMaximum(100);
-	ui.BLEProgressBar->setValue(0);
-}
-
-void TCV3::bleDisconnected()
-{
-	QIcon icon;
-	icon.addFile(QString::fromUtf8(":/TCV3/res/icon/BLE_Error.png"));
-	ui.BLEButton->setIcon(icon);
-	ui.BLELabel->setText("断开连接");
-	ui.BLELabel->setStyleSheet("color: #dc143c;");
-	ui.BLEProgressBar->setMaximum(100);
-	ui.BLEProgressBar->setValue(100);
-}
-
 void TCV3::onCpuTemperatureUpdated(int temperature)
 {
-	QIcon icon;
-	if (temperature > 80) {
-		icon.addFile(QString::fromUtf8(":/TCV3/res/icon/cpuTemp-red.png"));
-		ui.cpuTempIcon->setIcon(icon);
-		ui.cpuTempLabel->setStyleSheet("color: #dc143c;");
-	}
-	else {
-		icon.addFile(QString::fromUtf8(":/TCV3/res/icon/cpuTemp.png"));
-		ui.cpuTempIcon->setIcon(icon);
-		ui.cpuTempLabel->setStyleSheet("color: white;");
-	}
-
-	ui.cpuTempProgressBar->setLayoutDirection(Qt::LeftToRight);
-	ui.cpuTempProgressBar->setValue(100 - temperature);
-	ui.cpuTempProgressBar->setMaximum(100);
-
-	ui.cpuTempLabel->setText(QString::number(temperature) + "℃");
+	updateTempDisplay(temperature, m_warningCpuThreshold,
+		ui.cpuTempIcon, ui.cpuTempLabel, ui.cpuTempProgressBar,
+		m_cpuNormalIcon, m_cpuWarningIcon);
 }
 
 void TCV3::onGpuTemperatureUpdated(int temperature)
 {
-	QIcon icon;
-	if (temperature > 75) {
-		icon.addFile(QString::fromUtf8(":/TCV3/res/icon/gpuTemp-red.png"));
-		ui.gpuTempIcon->setIcon(icon);
-		ui.gpuTempLabel->setStyleSheet("color: #dc143c;");
-	}
-	else {
-		icon.addFile(QString::fromUtf8(":/TCV3/res/icon/gpuTemp.png"));
-		ui.gpuTempIcon->setIcon(icon);
-		ui.gpuTempLabel->setStyleSheet("color: white;");
-	}
-
-	ui.gpuTempProgressBar->setLayoutDirection(Qt::LeftToRight);
-	ui.gpuTempProgressBar->setValue(100 - temperature);
-	ui.gpuTempProgressBar->setMaximum(100);
-
-	ui.gpuTempLabel->setText(QString::number(temperature) + "℃");
+	updateTempDisplay(temperature, m_warningGpuThreshold,
+		ui.gpuTempIcon, ui.gpuTempLabel, ui.gpuTempProgressBar,
+		m_gpuNormalIcon, m_gpuWarningIcon);
 }
 
-void TCV3::autoMode()
+void TCV3::updateTempDisplay(int temperature, int warningThreshold,
+	QAbstractButton* iconBtn, QLabel* tempLabel, QProgressBar* bar,
+	const QIcon& normalIcon, const QIcon& warningIcon)
 {
-	emit setFanAutoMode();
-	QIcon SilentModeIcon, AutoModeIcon, PerformanceModeIcon;
-	SilentModeIcon.addFile(QString::fromUtf8(":/TCV3/res/icon/Button_Off.png"));
-	AutoModeIcon.addFile(QString::fromUtf8(":/TCV3/res/icon/Button_On.png"));
-	PerformanceModeIcon.addFile(QString::fromUtf8(":/TCV3/res/icon/Button_Off.png"));
-
-	ui.SilentModeButton->setIcon(SilentModeIcon);
-	ui.AutoModeButton->setIcon(AutoModeIcon);
-	ui.PerformanceModeButton->setIcon(PerformanceModeIcon);
-
-	if (!m_fanControlConnection)
-	{
-		connect(o_TCCore, &TCCore::controlDataUpdated, o_BLEThread, &BLEThread::controlFan);
+	if (temperature > warningThreshold) {
+		iconBtn->setIcon(warningIcon);
+		tempLabel->setStyleSheet(QStringLiteral("color: #e04050;"));
+	} else {
+		iconBtn->setIcon(normalIcon);
+		tempLabel->setStyleSheet(QStringLiteral("color: #e8e8e8;"));
 	}
-
-	ui.SilentModeButton->setEnabled(true);
-	ui.AutoModeButton->setEnabled(false);
-	ui.PerformanceModeButton->setEnabled(true);
+	bar->setLayoutDirection(Qt::LeftToRight);
+	bar->setValue(100 - temperature);
+	bar->setMaximum(100);
+	tempLabel->setText(QString::number(temperature) + QStringLiteral("℃"));
 }
 
-void TCV3::silentMode()
+void TCV3::setFanMode(int activeIdx, bool enableAutoConnection)
 {
-	QIcon SilentModeIcon, AutoModeIcon, PerformanceModeIcon;
-	SilentModeIcon.addFile(QString::fromUtf8(":/TCV3/res/icon/Button_On.png"));
-	AutoModeIcon.addFile(QString::fromUtf8(":/TCV3/res/icon/Button_Off.png"));
-	PerformanceModeIcon.addFile(QString::fromUtf8(":/TCV3/res/icon/Button_Off.png"));
-
-	ui.SilentModeButton->setIcon(SilentModeIcon);
-	ui.AutoModeButton->setIcon(AutoModeIcon);
-	ui.PerformanceModeButton->setIcon(PerformanceModeIcon);
-
-	if (m_fanControlConnection)
+	// 统一更新按钮图标和启用状态
+	for (int i = 0; i < m_fanModeButtons.size(); ++i)
 	{
-		disconnect(o_TCCore, &TCCore::controlDataUpdated, o_BLEThread, &BLEThread::controlFan);
+		bool isActive = (i == activeIdx);
+		m_fanModeButtons[i]->setIcon(isActive ? m_buttonOnIcon : m_buttonOffIcon);
+		m_fanModeButtons[i]->setEnabled(!isActive);
 	}
 
-	emit setFanSilentMode();
-
-	ui.SilentModeButton->setEnabled(false);
-	ui.AutoModeButton->setEnabled(true);
-	ui.PerformanceModeButton->setEnabled(true);
-}
-
-void TCV3::performanceMode()
-{
-	QIcon SilentModeIcon, AutoModeIcon, PerformanceModeIcon;
-	SilentModeIcon.addFile(QString::fromUtf8(":/TCV3/res/icon/Button_Off.png"));
-	AutoModeIcon.addFile(QString::fromUtf8(":/TCV3/res/icon/Button_Off.png"));
-	PerformanceModeIcon.addFile(QString::fromUtf8(":/TCV3/res/icon/Button_On.png"));
-
-	ui.SilentModeButton->setIcon(SilentModeIcon);
-	ui.AutoModeButton->setIcon(AutoModeIcon);
-	ui.PerformanceModeButton->setIcon(PerformanceModeIcon);
-
-	if (m_fanControlConnection)
+	// 统一管理自动模式连接
+	if (enableAutoConnection)
 	{
-		disconnect(o_TCCore, &TCCore::controlDataUpdated, o_BLEThread, &BLEThread::controlFan);
+		if (!m_fanControlConnection)
+		{
+			auto* tcc = m_moduleManager->getModule<TCCore>();
+			auto* ble = m_moduleManager->getModule<BLEThread>();
+			m_fanControlConnection = connect(tcc, &TCCore::controlDataUpdated,
+			                                  ble, &BLEThread::controlFan);
+		}
 	}
-
-	emit setFanPerformanceMode();
-
-	ui.SilentModeButton->setEnabled(true);
-	ui.AutoModeButton->setEnabled(true);
-	ui.PerformanceModeButton->setEnabled(false);
+	else
+	{
+		if (m_fanControlConnection)
+		{
+			disconnect(m_fanControlConnection);
+			m_fanControlConnection = {};
+		}
+	}
 }
+
+void TCV3::autoMode()        { setFanMode(0, true);  emit setFanAutoMode(); }
+void TCV3::silentMode()      { setFanMode(1, false); emit setFanSilentMode(); }
+void TCV3::performanceMode() { setFanMode(2, false); emit setFanPerformanceMode(); }
 
 void TCV3::resetSettings()
 {
@@ -500,7 +494,7 @@ void TCV3::resetSettings()
 
 	if (reply == QMessageBox::Yes) {
 		// 启动新实例并关闭当前程序
-		IniManagement::instance().deleteIniFile();
+		m_config->deleteFile();
 		QProcess::startDetached(QApplication::applicationFilePath());
 		QApplication::quit(); // 关闭当前程序
 	}
@@ -508,13 +502,13 @@ void TCV3::resetSettings()
 
 void TCV3::initConfigFile()
 {
-	if (!IniManagement::instance().IsInit("UI"))
+	if (!m_config->isInitialized("UI"))
 	{
-		IniManagement::instance().InitSection("UI", "false");
+		m_config->initSection("UI", "false");
 
-		IniManagement::instance().write("UI", "dataTxDelay", "5");
+		m_config->write("UI", "dataTxDelay", "5");
 
-		IniManagement::instance().InitSection("UI", "true");
+		m_config->initSection("UI", "true");
 	}
 }
 
@@ -523,12 +517,12 @@ void TCV3::autoStart()
 	if (!isAutoStartEnabled())
 	{
 		setAutoStart(true);
-		IniManagement::instance().write("UI", "AutoStart", "true");
+		m_config->write("UI", "AutoStart", "true");
 	}
 	else
 	{
 		setAutoStart(false);
-		IniManagement::instance().write("UI", "AutoStart", "false");
+		m_config->write("UI", "AutoStart", "false");
 	}
 	autoStartUiUpdata();
 }
@@ -589,16 +583,16 @@ bool TCV3::isAutoStartEnabled()
 
 void TCV3::dataDelay()
 {
-	int uiDelay = IniManagement::instance().read("UI", "dataTxDelay").toInt();
+	int uiDelay = m_config->read("UI", "dataTxDelay").toInt();
 
-	if (uiDelay > 0 && uiDelay < 11)
+	if (uiDelay >= kMinDelay && uiDelay <= kMaxDelay)
 	{
 		ui.dataDelayLabel->setText(QString::number(uiDelay));
 	}
 	else {
 		emit logMessage(QString("超出调节范围！重置为初始值！"), LogManagement::LOG_ERROR);
-		IniManagement::instance().write("UI", "dataTxDelay", "5");
-		uiDelay = IniManagement::instance().read("UI", "dataTxDelay").toInt();
+		m_config->write("UI", "dataTxDelay", "5");
+		uiDelay = m_config->read("UI", "dataTxDelay").toInt();
 		ui.dataDelayLabel->setText(QString::number(uiDelay));
 	}
 }
@@ -606,14 +600,14 @@ void TCV3::dataDelay()
 void TCV3::setdataDelay()
 {
 	int uiDelay = ui.dataDelayLabel->text().toInt();
-	int dataDelay = IniManagement::instance().read("TC", "DataTransmissionDelay").toInt();
+	int dataDelay = m_config->read("TC", "DataTransmissionDelay").toInt();
 	if (uiDelay == dataDelay / 1000)
 	{
 		return;
 	}
 	else
 	{
-		IniManagement::instance().write("TC", "DataTransmissionDelay", QString::number(uiDelay * 1000));
+		m_config->write("TC", "DataTransmissionDelay", QString::number(uiDelay * 1000));
 
 		emit  setDataTrDelayUpdataFlag(true);
 
@@ -623,7 +617,7 @@ void TCV3::setdataDelay()
 
 void TCV3::dataDelayUiUpdate(int data)
 {
-	if (data > 0 && data < 11)
+	if (data >= kMinDelay && data <= kMaxDelay)
 	{
 		ui.dataDelayLabel->setText(QString::number(data));
 	}
@@ -634,11 +628,11 @@ void TCV3::dataDelayUiUpdate(int data)
 
 void TCV3::addDelay()
 {
-	int dataDelay = IniManagement::instance().read("UI", "dataTxDelay").toInt();
-	if (dataDelay < 11)
+	int dataDelay = m_config->read("UI", "dataTxDelay").toInt();
+	if (dataDelay <= kMaxDelay)
 	{
 		dataDelay++;
-		IniManagement::instance().write("UI", "dataTxDelay", QString::number(dataDelay));
+		m_config->write("UI", "dataTxDelay", QString::number(dataDelay));
 		dataDelayUiUpdate(dataDelay);
 	}
 	else
@@ -649,11 +643,11 @@ void TCV3::addDelay()
 
 void TCV3::minusDelay()
 {
-	int dataDelay = IniManagement::instance().read("UI", "dataTxDelay").toInt();
-	if (dataDelay > 0)
+	int dataDelay = m_config->read("UI", "dataTxDelay").toInt();
+	if (dataDelay >= kMinDelay)
 	{
 		dataDelay--;
-		IniManagement::instance().write("UI", "dataTxDelay", QString::number(dataDelay));
+		m_config->write("UI", "dataTxDelay", QString::number(dataDelay));
 		dataDelayUiUpdate(dataDelay);
 	}
 	else

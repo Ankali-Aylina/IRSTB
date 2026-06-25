@@ -15,10 +15,7 @@
         <file>res/lib/amd_dll.dll</file>
         <file>res/lib/amd_dll.lib</file>
         <file>res/lib/Cpu_Dll.dll</file>
-        <file>res/lib/intel_dll.dll</file>
         <file>res/lib/nv_dll.dll</file>
-        <file>res/lib/WinRing0x64.dll</file>
-        <file>res/lib/WinRing0x64.sys</file>
         <file>res/lib/bin/AMDRyzenMasterDriver.cat</file>
         <file>res/lib/bin/AMDRyzenMasterDriver.inf</file>
         <file>res/lib/bin/AMDRyzenMasterDriver.sys</file>
@@ -44,9 +41,12 @@
         <file>res/icon/version_line.png</file>
         <file>res/icon/github-line.png</file>
         <file>res/icon/TreeNetWork_128.png</file>
-        <file>res/lib/BLEDll.dll</file>
         <file>res/icon/updataLog.png</file>
         <file>res/updatalog.md</file>
         <file>res/icon/TrayIcon.png</file>
+        <file>res/lib/IntelMSR.bin</file>
+        <file>res/lib/inteltemp.dll</file>
+        <file>res/lib/PawnIO_setup.exe</file>
+        <file>res/lib/BLEDll.dll</file>
     </qresource>
 </RCC>

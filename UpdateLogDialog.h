@@ -22,7 +22,6 @@ protected:
 private:
 	Ui::UpdateLogDialogClass ui;
 	QString mdFile;
-	LogManagement* m_log;
 
 	QSizeGrip* sizeGrip;
 	enum ResizeRegion { None, Right, Bottom, BottomRight };

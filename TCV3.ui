@@ -25,8 +25,10 @@
   <widget class="QWidget" name="centralWidget">
    <property name="styleSheet">
     <string notr="true">#centralWidget{
-	background-color:rgb(73, 102, 136);
-	border-radius: 10px;
+	background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+		stop:0 #2a3f5f, stop:0.3 #243656, stop:1 #1a2a3f);
+	border-radius: 12px;
+	border: 1px solid rgba(255,255,255,0.06);
 }</string>
    </property>
    <layout class="QGridLayout" name="gridLayout">
@@ -48,11 +50,12 @@
         </property>
         <property name="styleSheet">
          <string notr="true">#minimizeButton{
-border-radius:5px;
+border-radius: 6px;
+background: transparent;
 }
 
 #minimizeButton:hover{
-background-color:rgb(114, 159, 212)
+background: rgba(255,255,255,0.1);
 }</string>
         </property>
         <property name="text">
@@ -86,11 +89,12 @@ background-color:rgb(114, 159, 212)
         </property>
         <property name="styleSheet">
          <string notr="true">#maximizeButton{
-border-radius:5px;
+border-radius: 6px;
+background: transparent;
 }
 
 #maximizeButton:hover{
-background-color:rgb(114, 159, 212)
+background: rgba(255,255,255,0.1);
 }</string>
         </property>
         <property name="text">
@@ -124,11 +128,12 @@ background-color:rgb(114, 159, 212)
         </property>
         <property name="styleSheet">
          <string notr="true">#closeButton{
-border-radius:5px;
+border-radius: 6px;
+background: transparent;
 }
 
 #closeButton:hover{
-background-color:rgb(114, 159, 212)
+background: rgba(224, 64, 80, 0.7);
 }</string>
         </property>
         <property name="text">
@@ -158,8 +163,9 @@ background-color:rgb(114, 159, 212)
       </property>
       <widget class="QWidget" name="homePage">
        <property name="styleSheet">
-        <string notr="true">homePage{
- background-color:rgb(45, 63, 85)
+        <string notr="true">#homePage{
+ background: rgba(30, 45, 65, 0.6);
+ border-radius: 8px;
 }</string>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -167,7 +173,7 @@ background-color:rgb(114, 159, 212)
          <widget class="QWidget" name="homeWidget" native="true">
           <property name="styleSheet">
            <string notr="true">#homeWidget{
-background:rgb(45, 63, 85);
+background: transparent;
 }
 </string>
           </property>
@@ -193,23 +199,24 @@ background:rgb(45, 63, 85);
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTipDuration">
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
-              <string notr="true"> background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+              <string notr="true"> background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -234,8 +241,9 @@ border-radius: 5px;</string>
                 </property>
                 <property name="styleSheet">
                  <string notr="true">#cpuTempIcon{
-border-radius:5px;
-background:rgb(93, 130, 174);
+border-radius: 8px;
+background: rgba(91, 142, 196, 0.4);
+border: 1px solid rgba(255,255,255,0.08);
 }
 
 QToolTip{
@@ -275,7 +283,7 @@ color:white;
                  <bool>false</bool>
                 </property>
                 <property name="layoutDirection">
-                 <enum>Qt::RightToLeft</enum>
+                 <enum>Qt::LayoutDirection::RightToLeft</enum>
                 </property>
                 <property name="styleSheet">
                  <string notr="true">#cpuTempProgressBar{
@@ -299,19 +307,19 @@ background: #2d3f55;
                  <number>-1</number>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                 <property name="textVisible">
                  <bool>true</bool>
                 </property>
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="invertedAppearance">
                  <bool>true</bool>
                 </property>
                 <property name="textDirection">
-                 <enum>QProgressBar::BottomToTop</enum>
+                 <enum>QProgressBar::Direction::BottomToTop</enum>
                 </property>
                 <property name="format">
                  <string>%v</string>
@@ -345,7 +353,7 @@ background: #2d3f55;
                  <string>初始化…</string>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                </widget>
               </item>
@@ -373,23 +381,24 @@ background: #2d3f55;
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTipDuration">
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
-              <string notr="true"> background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+              <string notr="true"> background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -414,8 +423,9 @@ border-radius: 5px;</string>
                 </property>
                 <property name="styleSheet">
                  <string notr="true">#gpuTempIcon{
-border-radius:5px;
-background:rgb(93, 130, 174);
+border-radius: 8px;
+background: rgba(91, 142, 196, 0.4);
+border: 1px solid rgba(255,255,255,0.08);
 }
 
 QToolTip{
@@ -455,7 +465,7 @@ color:white;
                  <bool>false</bool>
                 </property>
                 <property name="layoutDirection">
-                 <enum>Qt::RightToLeft</enum>
+                 <enum>Qt::LayoutDirection::RightToLeft</enum>
                 </property>
                 <property name="styleSheet">
                  <string notr="true">#gpuTempProgressBar{
@@ -479,19 +489,19 @@ background: #2d3f55;
                  <number>0</number>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                 <property name="textVisible">
                  <bool>true</bool>
                 </property>
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="invertedAppearance">
                  <bool>true</bool>
                 </property>
                 <property name="textDirection">
-                 <enum>QProgressBar::BottomToTop</enum>
+                 <enum>QProgressBar::Direction::BottomToTop</enum>
                 </property>
                 <property name="format">
                  <string>%v</string>
@@ -526,7 +536,7 @@ background: #2d3f55;
                  <string>初始化…</string>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                </widget>
               </item>
@@ -554,23 +564,24 @@ background: #2d3f55;
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTipDuration">
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
-              <string notr="true"> background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+              <string notr="true"> background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -595,15 +606,16 @@ border-radius: 5px;</string>
                 </property>
                 <property name="styleSheet">
                  <string notr="true">#BLEButton{
-border-radius:5px;
-background:rgb(93, 130, 174);
+border-radius: 8px;
+background: rgba(91, 142, 196, 0.4);
+border: 1px solid rgba(255,255,255,0.08);
 }
 #BLEButton:hover{
- background-color:rgb(114, 159, 212);
+ background: rgba(110, 163, 217, 0.6);
 }
 
 #BLEButton:pressed{
- background-color:rgb(45, 63, 85);
+ background: rgba(61, 85, 117, 0.7);
 }
 
 QToolTip{
@@ -643,7 +655,7 @@ color:white;
                  <bool>false</bool>
                 </property>
                 <property name="layoutDirection">
-                 <enum>Qt::LeftToRight</enum>
+                 <enum>Qt::LayoutDirection::LeftToRight</enum>
                 </property>
                 <property name="styleSheet">
                  <string notr="true">#BLEProgressBar{
@@ -667,19 +679,19 @@ background: #2d3f55;
                  <number>0</number>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                 <property name="textVisible">
                  <bool>true</bool>
                 </property>
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="invertedAppearance">
                  <bool>false</bool>
                 </property>
                 <property name="textDirection">
-                 <enum>QProgressBar::BottomToTop</enum>
+                 <enum>QProgressBar::Direction::BottomToTop</enum>
                 </property>
                 <property name="format">
                  <string>%v</string>
@@ -715,7 +727,7 @@ color:white;
                  <string>初始化…</string>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                </widget>
               </item>
@@ -743,7 +755,7 @@ color:white;
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTip">
               <string>根据温度自动调节散热器</string>
@@ -752,18 +764,19 @@ color:white;
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
               <string notr="true">color:white;
-background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -786,16 +799,17 @@ border-radius: 5px;</string>
                 <property name="styleSheet">
                  <string notr="true">#AutoModeButton{
 color:white;
-background-color:rgb(93, 130, 174);
-border-radius:5px;
+background: rgba(91, 142, 196, 0.5);
+border: 1px solid rgba(255,255,255,0.08);
+AutoModeButton
 }
 
 #AutoModeButton:hover{
- background-color:rgb(114, 159, 212);
+ background: rgba(110, 163, 217, 0.6);
 }
 
 #AutoModeButton:pressed{
- background-color:rgb(45, 63, 85);
+ background: rgba(61, 85, 117, 0.7);
 }</string>
                 </property>
                 <property name="text">
@@ -828,10 +842,10 @@ border-radius:5px;
                  <string>自动模式</string>
                 </property>
                 <property name="textFormat">
-                 <enum>Qt::AutoText</enum>
+                 <enum>Qt::TextFormat::AutoText</enum>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                </widget>
               </item>
@@ -859,7 +873,7 @@ border-radius:5px;
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTip">
               <string>散热器保持最小负载运行</string>
@@ -868,18 +882,19 @@ border-radius:5px;
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
               <string notr="true">color:white;
-background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -902,16 +917,17 @@ border-radius: 5px;</string>
                 <property name="styleSheet">
                  <string notr="true">#SilentModeButton{
 color:white;
-background-color:rgb(93, 130, 174);
-border-radius:5px;
+background: rgba(91, 142, 196, 0.5);
+border: 1px solid rgba(255,255,255,0.08);
+SilentModeButton
 }
 
 #SilentModeButton:hover{
- background-color:rgb(114, 159, 212);
+ background: rgba(110, 163, 217, 0.6);
 }
 
 #SilentModeButton:pressed{
- background-color:rgb(45, 63, 85);
+ background: rgba(61, 85, 117, 0.7);
 }</string>
                 </property>
                 <property name="text">
@@ -939,7 +955,7 @@ color:white;</string>
                  <string>静音模式</string>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                </widget>
               </item>
@@ -967,7 +983,7 @@ color:white;</string>
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTip">
               <string>散热器保持最大负载运行</string>
@@ -976,18 +992,19 @@ color:white;</string>
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
               <string notr="true">color:white;
-background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -1010,16 +1027,17 @@ border-radius: 5px;</string>
                 <property name="styleSheet">
                  <string notr="true">#PerformanceModeButton{
 color:white;
-background-color:rgb(93, 130, 174);
-border-radius:5px;
+background: rgba(91, 142, 196, 0.5);
+border: 1px solid rgba(255,255,255,0.08);
+PerformanceModeButton
 }
 
 #PerformanceModeButton:hover{
- background-color:rgb(114, 159, 212);
+ background: rgba(110, 163, 217, 0.6);
 }
 
 #PerformanceModeButton:pressed{
- background-color:rgb(45, 63, 85);
+ background: rgba(61, 85, 117, 0.7);
 }</string>
                 </property>
                 <property name="text">
@@ -1047,7 +1065,7 @@ color:white;</string>
                  <string>全速模式</string>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                </widget>
               </item>
@@ -1057,7 +1075,7 @@ color:white;</string>
            <item>
             <spacer name="verticalSpacer_3">
              <property name="orientation">
-              <enum>Qt::Vertical</enum>
+              <enum>Qt::Orientation::Vertical</enum>
              </property>
              <property name="sizeHint" stdset="0">
               <size>
@@ -1073,12 +1091,18 @@ color:white;</string>
        </layout>
       </widget>
       <widget class="QWidget" name="settingsPage">
+       <property name="styleSheet">
+        <string notr="true">#settingsPage{
+ background: rgba(30, 45, 65, 0.6);
+ border-radius: 8px;
+}</string>
+       </property>
        <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
          <widget class="QWidget" name="settingsWidget" native="true">
           <property name="styleSheet">
            <string notr="true">#settingsWidget{
-background:rgb(45, 63, 85);
+background: transparent;
 }</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_7">
@@ -1103,23 +1127,24 @@ background:rgb(45, 63, 85);
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTipDuration">
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
-              <string notr="true"> background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+              <string notr="true"> background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -1128,7 +1153,7 @@ border-radius: 5px;</string>
               <item>
                <spacer name="horizontalSpacer_5">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -1142,7 +1167,7 @@ border-radius: 5px;</string>
                <widget class="QPushButton" name="resetSettingsButton">
                 <property name="minimumSize">
                  <size>
-                  <width>101</width>
+                  <width>120</width>
                   <height>31</height>
                  </size>
                 </property>
@@ -1160,17 +1185,18 @@ border-radius: 5px;</string>
                 </property>
                 <property name="styleSheet">
                  <string notr="true">#resetSettingsButton{
-color:white;
-background-color:#dc143c;
-border-radius:5px;
+color: #e8e8e8;
+background: rgba(224, 64, 80, 0.7);
+border: 1px solid rgba(224, 64, 80, 0.3);
+border-radius: 8px;
 }
 
 #resetSettingsButton:hover{
- background-color:#e02b50;
+ background: rgba(224, 64, 80, 0.85);
 }
 
 #resetSettingsButton:pressed{
- background-color:#b01030;
+ background: rgba(176, 16, 48, 0.9);
 }</string>
                 </property>
                 <property name="text">
@@ -1202,23 +1228,24 @@ border-radius:5px;
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTipDuration">
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
-              <string notr="true"> background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+              <string notr="true"> background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -1277,7 +1304,7 @@ color:white;
               <item>
                <spacer name="horizontalSpacer_6">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -1291,7 +1318,7 @@ color:white;
                <widget class="QPushButton" name="autoStartButton">
                 <property name="minimumSize">
                  <size>
-                  <width>50</width>
+                  <width>55</width>
                   <height>30</height>
                  </size>
                 </property>
@@ -1309,17 +1336,18 @@ color:white;
                 </property>
                 <property name="styleSheet">
                  <string notr="true">#autoStartButton{
-color:white;
-background-color:rgb(93, 130, 174);
-border-radius:15px;
+color: #e8e8e8;
+background: rgba(91, 142, 196, 0.5);
+border: 1px solid rgba(255,255,255,0.08);
+border-radius: 8px;
 }
 
 #autoStartButton:hover{
-background-color:rgb(114, 159, 212);
+background: rgba(110, 163, 217, 0.6);
 }
 
 #autoStartButton:pressed{
-background-color:rgb(45, 63, 85);
+background: rgba(61, 85, 117, 0.7);
 }</string>
                 </property>
                 <property name="text">
@@ -1361,23 +1389,24 @@ background-color:rgb(45, 63, 85);
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTipDuration">
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
-              <string notr="true"> background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+              <string notr="true"> background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -1445,7 +1474,7 @@ color:white;
               <item>
                <spacer name="horizontalSpacer_8">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -1472,16 +1501,16 @@ color:white;
                 <property name="styleSheet">
                  <string notr="true">#addDelayButton{
 color:white;
-background-color:rgb(93, 130, 174);
+background: rgba(91, 142, 196, 0.5);
 border-radius:5px;
 }
 
 #addDelayButton:hover{
-background-color:rgb(114, 159, 212);
+background: rgba(110, 163, 217, 0.6);
 }
 
 #addDelayButton:pressed{
-background-color:rgb(45, 63, 85);
+background: rgba(61, 85, 117, 0.7);
 }</string>
                 </property>
                 <property name="text">
@@ -1514,7 +1543,7 @@ background-color:rgb(45, 63, 85);
                  <string>10</string>
                 </property>
                 <property name="textFormat">
-                 <enum>Qt::AutoText</enum>
+                 <enum>Qt::TextFormat::AutoText</enum>
                 </property>
                </widget>
               </item>
@@ -1554,16 +1583,16 @@ background-color:rgb(45, 63, 85);
                 <property name="styleSheet">
                  <string notr="true">#minusButton{
 color:white;
-background-color:rgb(93, 130, 174);
+background: rgba(91, 142, 196, 0.5);
 border-radius:5px;
 }
 
 #minusButton:hover{
-background-color:rgb(114, 159, 212);
+background: rgba(110, 163, 217, 0.6);
 }
 
 #minusButton:pressed{
-background-color:rgb(45, 63, 85);
+background: rgba(61, 85, 117, 0.7);
 }</string>
                 </property>
                 <property name="text">
@@ -1584,7 +1613,7 @@ background-color:rgb(45, 63, 85);
               <item>
                <spacer name="horizontalSpacer_7">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -1598,7 +1627,7 @@ background-color:rgb(45, 63, 85);
                <widget class="QPushButton" name="dataTxDelayButton">
                 <property name="minimumSize">
                  <size>
-                  <width>50</width>
+                  <width>55</width>
                   <height>30</height>
                  </size>
                 </property>
@@ -1616,17 +1645,18 @@ background-color:rgb(45, 63, 85);
                 </property>
                 <property name="styleSheet">
                  <string notr="true">#dataTxDelayButton{
-color:white;
-background-color:rgb(93, 130, 174);
-border-radius:10px;
+color: #e8e8e8;
+background: rgba(91, 142, 196, 0.5);
+border: 1px solid rgba(255,255,255,0.08);
+border-radius: 8px;
 }
 
 #dataTxDelayButton:hover{
-background-color:rgb(114, 159, 212);
+background: rgba(110, 163, 217, 0.6);
 }
 
 #dataTxDelayButton:pressed{
-background-color:rgb(45, 63, 85);
+background: rgba(61, 85, 117, 0.7);
 }</string>
                 </property>
                 <property name="text">
@@ -1640,7 +1670,7 @@ background-color:rgb(45, 63, 85);
            <item>
             <spacer name="verticalSpacer">
              <property name="orientation">
-              <enum>Qt::Vertical</enum>
+              <enum>Qt::Orientation::Vertical</enum>
              </property>
              <property name="sizeHint" stdset="0">
               <size>
@@ -1656,12 +1686,18 @@ background-color:rgb(45, 63, 85);
        </layout>
       </widget>
       <widget class="QWidget" name="aboutPage">
+       <property name="styleSheet">
+        <string notr="true">#aboutPage{
+ background: rgba(30, 45, 65, 0.6);
+ border-radius: 8px;
+}</string>
+       </property>
        <layout class="QVBoxLayout" name="verticalLayout_4">
         <item>
          <widget class="QWidget" name="aboutWidget" native="true">
           <property name="styleSheet">
            <string notr="true">#aboutWidget{
-background:rgb(45, 63, 85);
+background: transparent;
 }</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_6">
@@ -1686,23 +1722,24 @@ background:rgb(45, 63, 85);
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTipDuration">
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
-              <string notr="true"> background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+              <string notr="true"> background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -1743,7 +1780,7 @@ border-radius: 5px;</string>
               <item>
                <spacer name="horizontalSpacer_10">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -1772,7 +1809,7 @@ border-radius: 5px;</string>
               <item>
                <spacer name="horizontalSpacer_9">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -1806,23 +1843,24 @@ border-radius: 5px;</string>
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTipDuration">
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
-              <string notr="true"> background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+              <string notr="true"> background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -1872,14 +1910,14 @@ border-radius: 5px;</string>
                  <string>版本</string>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                </widget>
               </item>
               <item>
                <spacer name="horizontalSpacer_12">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -1908,7 +1946,7 @@ border-radius: 5px;</string>
               <item>
                <spacer name="horizontalSpacer_11">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -1942,23 +1980,24 @@ border-radius: 5px;</string>
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTipDuration">
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
-              <string notr="true"> background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+              <string notr="true"> background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -2008,14 +2047,14 @@ border-radius: 5px;</string>
                  <string>支持</string>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                </widget>
               </item>
               <item>
                <spacer name="horizontalSpacer_13">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -2042,16 +2081,16 @@ border-radius: 5px;</string>
                 <property name="styleSheet">
                  <string notr="true">#supportButton{
 color:white;
-background-color:rgb(93, 130, 174);
+background: rgba(91, 142, 196, 0.5);
 border-radius:5px;
 }
 
 #supportButton:hover{
-background-color:rgb(114, 159, 212);
+background: rgba(110, 163, 217, 0.6);
 }
 
 #supportButton:pressed{
-background-color:rgb(45, 63, 85);
+background: rgba(61, 85, 117, 0.7);
 }</string>
                 </property>
                 <property name="text">
@@ -2062,7 +2101,7 @@ background-color:rgb(45, 63, 85);
               <item>
                <spacer name="horizontalSpacer_14">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -2096,23 +2135,24 @@ background-color:rgb(45, 63, 85);
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTipDuration">
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
-              <string notr="true"> background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+              <string notr="true"> background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -2162,14 +2202,14 @@ border-radius: 5px;</string>
                  <string>更新</string>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                </widget>
               </item>
               <item>
                <spacer name="horizontalSpacer_15">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -2196,16 +2236,16 @@ border-radius: 5px;</string>
                 <property name="styleSheet">
                  <string notr="true">#updataLogButton{
 color:white;
-background-color:rgb(93, 130, 174);
+background: rgba(91, 142, 196, 0.5);
 border-radius:5px;
 }
 
 #updataLogButton:hover{
-background-color:rgb(114, 159, 212);
+background: rgba(110, 163, 217, 0.6);
 }
 
 #updataLogButton:pressed{
-background-color:rgb(45, 63, 85);
+background: rgba(61, 85, 117, 0.7);
 }</string>
                 </property>
                 <property name="text">
@@ -2216,7 +2256,7 @@ background-color:rgb(45, 63, 85);
               <item>
                <spacer name="horizontalSpacer_16">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -2250,23 +2290,24 @@ background-color:rgb(45, 63, 85);
               </font>
              </property>
              <property name="contextMenuPolicy">
-              <enum>Qt::NoContextMenu</enum>
+              <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
              </property>
              <property name="toolTipDuration">
               <number>0</number>
              </property>
              <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+              <enum>Qt::LayoutDirection::LeftToRight</enum>
              </property>
              <property name="styleSheet">
-              <string notr="true"> background-color:rgb(73, 102, 136);
-border-radius: 5px;</string>
+              <string notr="true"> background-color: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
+border: 1px solid rgba(255,255,255,0.04);</string>
              </property>
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <property name="lineWidth">
               <number>0</number>
@@ -2316,14 +2357,14 @@ border-radius: 5px;</string>
                  <string>感谢</string>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                </widget>
               </item>
               <item>
                <spacer name="horizontalSpacer_17">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -2355,7 +2396,7 @@ border-radius: 5px;</string>
               <item>
                <spacer name="horizontalSpacer_18">
                 <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Orientation::Horizontal</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
@@ -2371,7 +2412,7 @@ border-radius: 5px;</string>
            <item>
             <spacer name="verticalSpacer_4">
              <property name="orientation">
-              <enum>Qt::Vertical</enum>
+              <enum>Qt::Orientation::Vertical</enum>
              </property>
              <property name="sizeHint" stdset="0">
               <size>
@@ -2409,7 +2450,7 @@ border-radius: 5px;</string>
     <item row="0" column="4">
      <spacer name="horizontalSpacer">
       <property name="orientation">
-       <enum>Qt::Horizontal</enum>
+       <enum>Qt::Orientation::Horizontal</enum>
       </property>
       <property name="sizeHint" stdset="0">
        <size>
@@ -2428,13 +2469,22 @@ border-radius: 5px;</string>
        <pixmap resource="TCV3.qrc">:/TCV3/res/icon/TreeNetWork.png</pixmap>
       </property>
       <property name="alignment">
-       <set>Qt::AlignCenter</set>
+       <set>Qt::AlignmentFlag::AlignCenter</set>
       </property>
      </widget>
     </item>
     <item row="1" column="0" colspan="2">
      <widget class="QWidget" name="centrolwidget" native="true">
+      <property name="styleSheet">
+       <string notr="true">#centrolwidget{
+	background: rgba(30, 45, 65, 0.7);
+	border-radius: 8px;
+}</string>
+      </property>
       <layout class="QVBoxLayout" name="verticalLayout">
+       <property name="spacing">
+        <number>4</number>
+       </property>
        <item>
         <widget class="QPushButton" name="homeButton">
          <property name="minimumSize">
@@ -2451,17 +2501,20 @@ border-radius: 5px;</string>
          </property>
          <property name="styleSheet">
           <string notr="true">#homeButton{
-color:white;
-background-color:rgb(93, 130, 174);
-border-radius:5px;
+color: #e8e8e8;
+background: rgba(91, 142, 196, 0.25);
+border: 1px solid rgba(255,255,255,0.08);
+border-radius: 8px;
+padding: 6px 12px;
 }
 
 #homeButton:hover{
- background-color:rgb(114, 159, 212);
+ background: rgba(110, 163, 217, 0.4);
+ border-color: rgba(255,255,255,0.15);
 }
 
 #homeButton:pressed{
- background-color:rgb(45, 63, 85);
+ background: rgba(61, 85, 117, 0.6);
 }</string>
          </property>
          <property name="text">
@@ -2495,17 +2548,20 @@ border-radius:5px;
          </property>
          <property name="styleSheet">
           <string notr="true">#settingsButton{
-color:white;
-background-color:rgb(93, 130, 174);
-border-radius:5px;
+color: #e8e8e8;
+background: rgba(91, 142, 196, 0.25);
+border: 1px solid rgba(255,255,255,0.08);
+border-radius: 8px;
+padding: 6px 12px;
 }
 
 #settingsButton:hover{
- background-color:rgb(114, 159, 212);
+ background: rgba(110, 163, 217, 0.4);
+ border-color: rgba(255,255,255,0.15);
 }
 
 #settingsButton:pressed{
- background-color:rgb(45, 63, 85);
+ background: rgba(61, 85, 117, 0.6);
 }</string>
          </property>
          <property name="text">
@@ -2526,7 +2582,7 @@ border-radius:5px;
        <item>
         <spacer name="verticalSpacer_2">
          <property name="orientation">
-          <enum>Qt::Vertical</enum>
+          <enum>Qt::Orientation::Vertical</enum>
          </property>
          <property name="sizeHint" stdset="0">
           <size>
@@ -2552,17 +2608,20 @@ border-radius:5px;
          </property>
          <property name="styleSheet">
           <string notr="true">#aboutButton{
-color:white;
-background-color:rgb(93, 130, 174);
-border-radius:5px;
+color: #e8e8e8;
+background: rgba(91, 142, 196, 0.25);
+border: 1px solid rgba(255,255,255,0.08);
+border-radius: 8px;
+padding: 6px 12px;
 }
 
 #aboutButton:hover{
- background-color:rgb(114, 159, 212);
+ background: rgba(110, 163, 217, 0.4);
+ border-color: rgba(255,255,255,0.15);
 }
 
 #aboutButton:pressed{
- background-color:rgb(45, 63, 85);
+ background: rgba(61, 85, 117, 0.6);
 }</string>
          </property>
          <property name="text">

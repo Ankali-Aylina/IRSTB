@@ -5,7 +5,8 @@ ExitWidgets::ExitWidgets(QWidget* parent)
 {
 	ui.setupUi(this);
 
-	this->setWindowFlags(Qt::FramelessWindowHint | windowFlags());
+	this->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | windowFlags());
+	setWindowModality(Qt::ApplicationModal);
 
 	//setWindowFlags(Qt::FramelessWindowHint);    //隐藏标题栏（无边框）
 	setAttribute(Qt::WA_StyledBackground);      //启用样式背景绘制
@@ -20,6 +21,41 @@ ExitWidgets::ExitWidgets(QWidget* parent)
 
 ExitWidgets::~ExitWidgets()
 {
+}
+
+void ExitWidgets::mousePressEvent(QMouseEvent* event)
+{
+	// 允许在 titleBar 区域拖动窗口
+	int x = ui.titleBar->x();
+	int y = ui.titleBar->y();
+	int w = ui.titleBar->width();
+	int h = ui.titleBar->height();
+	QPointF winpos = event->position();
+
+	if (event->button() == Qt::LeftButton
+		&& winpos.x() > x && winpos.x() < x + w
+		&& winpos.y() > y && winpos.y() < y + h)
+	{
+		m_leftMousePressed = true;
+		m_StartPoint = event->globalPosition();
+	}
+}
+
+void ExitWidgets::mouseMoveEvent(QMouseEvent* event)
+{
+	if (m_leftMousePressed)
+	{
+		QPointF curPoint = event->globalPosition();
+		QPointF movePoint = curPoint - m_StartPoint;
+		this->move(this->pos().x() + movePoint.x(),
+		           this->pos().y() + movePoint.y());
+		m_StartPoint = curPoint;
+	}
+}
+
+void ExitWidgets::mouseReleaseEvent(QMouseEvent* /*event*/)
+{
+	m_leftMousePressed = false;
 }
 
 void ExitWidgets::TitleClose()

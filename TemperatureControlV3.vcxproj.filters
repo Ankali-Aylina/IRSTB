@@ -49,13 +49,28 @@
     <ClCompile Include="BLEThread.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="BluetoothStatusPresenter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="LogManagement.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NativeLibraryLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PawnIoDriverManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="IniManagement.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="UpdateLogDialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AppModuleManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ApplicationBootstrap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -69,6 +84,9 @@
     <QtMoc Include="BLEThread.h">
       <Filter>Header Files</Filter>
     </QtMoc>
+    <QtMoc Include="BluetoothStatusPresenter.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
     <QtMoc Include="LogManagement.h">
       <Filter>Header Files</Filter>
     </QtMoc>
@@ -76,6 +94,9 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="UpdateLogDialog.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="AppModuleManager.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
@@ -93,6 +114,24 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ApplicationBootstrap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IAppModule.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IConfigProvider.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NativeLibraryLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PawnIoDriverManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TemperatureConfig.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

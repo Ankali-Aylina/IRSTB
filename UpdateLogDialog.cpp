@@ -26,7 +26,10 @@ UpdateLogDialog::UpdateLogDialog(QWidget* parent)
 
 	connect(ui.closeButton, &QPushButton::clicked, this, &UpdateLogDialog::close);
 
-	mdFile = QCoreApplication::applicationDirPath() + "./updatalog.md";
+	// 连接日志到全局单例
+	connect(this, &UpdateLogDialog::logMessage, &LogManagement::instance(), &LogManagement::logMessage);
+
+	mdFile = QCoreApplication::applicationDirPath() + "/updatalog.md";
 	QFile file(mdFile);
 	if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
 		qWarning() << "无法打开文件:" << mdFile;

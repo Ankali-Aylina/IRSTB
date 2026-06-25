@@ -2,11 +2,10 @@
 
 IniManagement::IniManagement(QObject* parent)
 {
-	m_path = QCoreApplication::applicationDirPath() + "./config.ini";
+	m_path = QCoreApplication::applicationDirPath() + "/config.ini";
 	m_settings.reset(new QSettings(m_path, QSettings::IniFormat));
 
-	m_logIniMgmt = new LogManagement(this);
-	connect(this, &IniManagement::logMessage, m_logIniMgmt, &LogManagement::logMessage);
+	connect(this, &IniManagement::logMessage, &LogManagement::instance(), &LogManagement::logMessage);
 }
 
 IniManagement& IniManagement::instance()
@@ -26,7 +25,7 @@ void IniManagement::write(const QString& section, const QString& key, const QVar
 	m_settings->beginGroup(section);
 	m_settings->setValue(key, value);
 	m_settings->endGroup();
-	m_settings->sync(); // 同步写入文件
+	// 移除每次写入的 sync()——QSettings 在析构时自动同步，或调用 flush() 批量刷新
 
 	if (m_settings->status() != QSettings::NoError)
 	{
@@ -43,22 +42,18 @@ QVariant IniManagement::read(const QString& section, const QString& key) const
 	return value;
 }
 
-void IniManagement::InitSection(const QString& section, const QString& status)
+void IniManagement::initSection(const QString& section, const QString& status)
 {
 	write(section, "InitStatus", status);
 }
 
-bool IniManagement::IsInit(const QString& section) const
+bool IniManagement::isInitialized(const QString& section) const
 {
 	QString IniFile_InitStatus = read(section, "InitStatus").toString();
-	if (IniFile_InitStatus != "true" || IniFile_InitStatus == "")
-	{
-		return false;
-	}
-	return true;
+	return IniFile_InitStatus == "true";
 }
 
-bool IniManagement::IsExist() const
+bool IniManagement::fileExists() const
 {
 	QFile file(m_path);
 	bool exists = file.exists();
@@ -69,7 +64,7 @@ bool IniManagement::IsExist() const
 	return exists;
 }
 
-void IniManagement::deleteIniFile()
+void IniManagement::deleteFile()
 {
 	QFile file(m_path);
 	if (file.exists()) {

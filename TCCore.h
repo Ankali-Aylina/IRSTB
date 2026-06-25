@@ -1,28 +1,29 @@
 ﻿#pragma once
 
 #include <QObject>
-#include <QLibrary>
-#include <QDebug>
-#include <QMessageBox>
-#include <windows.h>
-#include <QApplication>
 #include <QTimer>
+#include <QThread>
 
-#include <thread>
 #include <algorithm>
 #include <cmath>
+#include "LogManagement.h"
+#include "IAppModule.h"
+#include "IConfigProvider.h"
+#include "NativeLibraryLoader.h"
+#include "TemperatureConfig.h"
 
-#include <IniManagement.h>
-#include <LogManagement.h>
-#include "BLEThread.h"
-
-class TCCore : public QObject
+class TCCore : public QObject, public IAppModule
 {
 	Q_OBJECT
 
 public:
-	explicit TCCore(QObject* parent = nullptr);
+	explicit TCCore(IConfigProvider* config, QObject* parent = nullptr);
 	~TCCore();
+
+	// --- IAppModule 接口 ---
+	bool initialize() override;
+	void start() override;
+	void stop(int timeoutMs = 3000) override;
 
 public slots:
 
@@ -78,24 +79,23 @@ signals:
 	void controlDataUpdated(char* data);
 
 private:
+	std::atomic<bool> m_stopped{ false };  // 添加停止标志
 
-	LogManagement* m_logTCCore; //日志管理器
+	IConfigProvider* m_config; // 配置提供者（依赖注入）
+
+	QThread* m_workThread = nullptr; // 自管理的工作线程
 
 	bool m_setDelayFlag; //设置延时标志
 
-	BLEThread* m_bleThread; //蓝牙线程
+	TemperatureConfig m_tempCfg; // 温度阈值配置（可从 INI 加载）
 
-	/*-----------------------------------------------*/
-	const int  InitCpuTemp = 40;	//初始CPU温度等级
-	const int  InitGpuTemp = 40;	//初始GPU温度等级
-	const int cpuStep = 10;			//CPU温度步长
-	const int gpuStep = 8;			//GPU温度步长
 	int cpuLevel;
 	int gpuLevel;
-	int historyLevel[5] = { 0,0,0,0,0 }; //历史数据等级
-	float weights[5] = { 1, 1, 2, 3, 2 }; // 自定义权重（中心权重高）
+	std::vector<int> historyLevel;   // 动态历史等级
+	std::vector<float> tempWeights;  // 动态权重（副本，避免跨线程访问配置）
 
-	int sendHistoryLevel;	// 发送的历史等级
+	int sendHistoryLevel;	// 上次发送的等级
+	int m_consecutiveLow = 0; // 连续低于当前等级的计数（滞后）
 	bool sendHistoryFirst = true;	// 首次发送标志
 
 	/// <summary>
@@ -115,12 +115,6 @@ private:
 	int TempMgmt();
 
 	/*------------------------------------------------------*/
-	enum DllLoadStatus {
-		DLL_NOT_LOADED = 0, //DLL未加载
-		DLL_LOADED = 1,	//DLL已加载
-		DLL_LOAD_FAILED = -1, //DLL加载失败
-		DLL_RESOLVE_FAILED = -2 //DLL解析失败
-	};
 
 	enum CpuType {
 		CPU_INTEL,
@@ -131,61 +125,51 @@ private:
 	typedef char* (*GetCPUType_Func)();
 	typedef void (*FreeCPUType_Func)(char*);
 
-	typedef int (*Intel_Init_Func)();
-	typedef int (*Intel_GetTemp_Func)();
-
 	typedef int (*AMD_Init_Func)();
 	typedef int (*AMD_GetTemp_Func)();
+
+	// --- IntelTemp DLL API (替代旧 intel_dll.dll) ---
+	// 温度类型
+	enum TemperatureType { TEMP_TYPE_CORE = 0, TEMP_TYPE_PACKAGE = 1 };
+
+	// 函数指针
+	typedef int (*IntelTemp_Initialize_Func)(const wchar_t* binaryPath);
+	typedef int (*IntelTemp_ReadTemp_Func)(int type, float* temp);
+	typedef int (*IntelTemp_GetLastError_Func)(char* detail, int detailSize);
+	typedef void (*IntelTemp_Cleanup_Func)();
 
 	typedef int (*Nv_Init_Func)();
 	typedef int (*Nv_GetTemp_Func)();
 
 	/*-------------------------------------------------------------------------*/
 
-	/// <summary>
-	/// DLL加载状态
-	/// </summary>
-	struct Dll_Status {
-		DllLoadStatus CPUID_Status = DLL_NOT_LOADED; //CPUID DLL加载状态
-		DllLoadStatus Intel_Status = DLL_NOT_LOADED; //Intel DLL加载状态
-		DllLoadStatus AMD_Status = DLL_NOT_LOADED; //AMD DLL加载状态
-		DllLoadStatus Nv_Status = DLL_NOT_LOADED; //NVIDIA DLL加载状态
-		CpuType CPUType = CPU_UNKNOWN; //CPU类型
-	};
-	Dll_Status m_dllStatus;
+	CpuType m_cpuType = CPU_UNKNOWN; // CPU类型
 
-	/// <summary>
-	/// DLL 管理器状态
-	/// </summary>
-	struct Mgmt_Flage {
-		bool Load_CPU_Dll_Mgmt_Flage = false; //CPU DLL加载管理器标志
-		bool Load_GPU_Dll_Mgmt_Flage = false; //GPU DLL加载管理器标志
-	};
-	Mgmt_Flage m_mgmtFlag;
+	NativeLibraryLoader m_cpuidLoader;
+	NativeLibraryLoader m_intelLoader;
+	NativeLibraryLoader m_amdLoader;
+	NativeLibraryLoader m_nvLoader;
 
-	//struct ControlData {
-	//	int sendData = 0; //最早的数据
-	//	int lastData = 0; //上次的数据
-	//	//int historyData = 0; //历史数据
-	//};
-	//ControlData m_controlData;
-
-	QLibrary m_cpuidLib; //CPUID DLL
-	QLibrary m_intelLib; //Intel DLL
-	QLibrary m_amdLib; //AMD DLL
-	QLibrary m_nvLib; //NVIDIA DLL
+	bool m_cpuDllLoaded = false; // CPU DLL 管理标志
+	bool m_gpuDllLoaded = false; // GPU DLL 管理标志
 
 	GetCPUType_Func m_getCPUType;
 	FreeCPUType_Func m_freeCPUType;
 
-	Intel_Init_Func m_intelInit;
-	Intel_GetTemp_Func m_intelGetTemp;
+	// IntelTemp API 函数指针
+	IntelTemp_Initialize_Func m_inteltempInit = nullptr;
+	IntelTemp_ReadTemp_Func m_inteltempReadTemp = nullptr;
+	IntelTemp_GetLastError_Func m_inteltempGetLastError = nullptr;
+	IntelTemp_Cleanup_Func m_inteltempCleanup = nullptr;
+	bool m_inteltempInitialized = false; // 是否已调用 inteltemp_initialize
 
 	AMD_Init_Func m_amdInit;
 	AMD_GetTemp_Func m_amdGetTemp;
+	bool m_amdInitialized = false; // AMD Init 已调用
 
 	Nv_Init_Func m_nvInit;
 	Nv_GetTemp_Func m_nvGetTemp;
+	bool m_nvInitialized = false; // NV Init 已调用
 
 	/// <summary>
 	/// 加载CPUID DLL
@@ -237,63 +221,4 @@ private:
 	/// 获取数据发送延迟
 	/// </summary>
 	int getDataTrDelay();
-
-	/*-----------------------------------------------------------------*/
-	///// <summary>
-	///// DLL库状态
-	///// </summary>
-	//struct Dll_Status {
-	//	int	CPUID_Status = 0;
-	//	int	Intel_Status = 0;
-	//	int	AMD_Status = 0;
-	//	int	Nv_Status = 0;
-	//	char* CPUID;
-	//};
-	//Dll_Status DllStatus;
-
-	///// <summary>
-	///// DLL库管理器状态
-	///// </summary>
-	//struct Mgmt_Flage {
-	//	int Load_CPU_Dll_Mgmt_Flage = 0;
-	//	int Load_GPU_Dll_Mgmt_Flage = 0;
-	//};
-	//Mgmt_Flage MgmtFlage;
-
-	//QLibrary CPUID_lib;
-	//QLibrary Intel_lib;
-	//QLibrary AMD_lib;
-	//QLibrary Nv_lib;
-
-	//GetCPUType_Func GetCPUType;
-	//FreeCPUType_Func FreeCPUType;
-
-	//Intel_Init_Func Intel_Init;
-	//Intel_GetTemp_Func Intel_GetTemp;
-
-	//AMD_Init_Func AMD_Init;
-	//AMD_GetTemp_Func AMD_GetTemp;
-
-	//Nv_Init_Func Nv_Init;
-	//Nv_GetTemp_Func Nv_GetTemp;
-
-	//// 加载CPUID DLL
-	//void LOAD_CPUID_DLL();
-	//// 加载Intel DLL
-	//void LOAD_Intel_DLL();
-	//// 加载AMD DLL
-	//void LOAD_AMD_DLL();
-	//// 加载Nv DLL
-	//void LOAD_Nv_DLL();
-
-	//// 加载CPU DLL管理
-	//void LOAD_CPU_DLL_Mgmt();
-	//// 加载GPU DLL管理
-	//void LOAD_GPU_DLL_Mgmt();
-	//// 获取CPU温度管理
-	//int Get_CPUTemp_Mgmt();
-	//// 获取GPU温度管理
-	//int Get_GPUTemp_Mgmt();
-
-	/*-----------------------------------------------------------------------------*/
 };

@@ -39,7 +39,7 @@
    </property>
    <property name="styleSheet">
     <string notr="true">#exitWidget{
-	background:rgb(45, 63, 85);
+	background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2a3f5f, stop:1 #1a2a3f);
 	border-radius: 10px; 
 }</string>
    </property>
@@ -47,7 +47,7 @@
     <item>
      <widget class="QWidget" name="titleBar" native="true">
       <property name="styleSheet">
-       <string notr="true">background-color:rgb(73, 102, 136);
+       <string notr="true">background: rgba(42, 63, 95, 0.85);
 border-radius: 10px; </string>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -71,7 +71,7 @@ border-radius: 10px; </string>
          <property name="styleSheet">
           <string notr="true">#titleIconButton{
 color:white;
-background-color:rgb(93, 130, 174);
+background: rgba(91, 142, 196, 0.5);
 border-radius:5px;
 }</string>
          </property>
@@ -96,8 +96,8 @@ border-radius:5px;
           </font>
          </property>
          <property name="styleSheet">
-          <string notr="true">background-color:rgb(73, 102, 136);
-color:white;</string>
+          <string notr="true">background: transparent;
+color: #e8e8e8;</string>
          </property>
          <property name="text">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;退出? ((o(*ﾟ▽ﾟ*)o))&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -127,7 +127,7 @@ color:white;</string>
          <property name="styleSheet">
           <string notr="true">#titlecloseButton{
 color:white;
-background-color:rgb(93, 130, 174);
+background: rgba(91, 142, 196, 0.5);
 border-radius:5px;
 }
 
@@ -170,8 +170,8 @@ border-radius:5px;
     <item>
      <widget class="QWidget" name="exitInfoWidget" native="true">
       <property name="styleSheet">
-       <string notr="true">background-color:rgb(73, 102, 136);
-	border-radius: 10px; </string>
+       <string notr="true">background: rgba(42, 63, 95, 0.85);
+\tborder-radius: 10px; </string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_3">
        <item>
@@ -183,8 +183,8 @@ border-radius:5px;
           </font>
          </property>
          <property name="styleSheet">
-          <string notr="true">background-color:rgb(73, 102, 136);
-color:white;</string>
+          <string notr="true">background: transparent;
+color: #e8e8e8;</string>
          </property>
          <property name="text">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;可以选择软件最小化后台保持运行，&lt;/p&gt;&lt;p&gt;确定退出吗？( 0 v 0 )&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -213,8 +213,8 @@ color:white;</string>
     <item>
      <widget class="QWidget" name="widget" native="true">
       <property name="styleSheet">
-       <string notr="true">background-color:rgb(73, 102, 136);
-	border-radius: 10px; </string>
+       <string notr="true">background: rgba(42, 63, 95, 0.85);
+\tborder-radius: 10px; </string>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
@@ -237,7 +237,7 @@ color:white;</string>
          <property name="styleSheet">
           <string notr="true">#cancelButton{
 color:white;
-background-color:rgb(93, 130, 174);
+background: rgba(91, 142, 196, 0.5);
 border-radius:5px;
 }
 
@@ -280,7 +280,7 @@ border-radius:5px;
          <property name="styleSheet">
           <string notr="true">#exitButton{
 color:white;
-background-color:rgb(93, 130, 174);
+background: rgba(91, 142, 196, 0.5);
 border-radius:5px;
 }
 
@@ -323,7 +323,7 @@ border-radius:5px;
          <property name="styleSheet">
           <string notr="true">#minimizeButton{
 color:white;
-background-color:rgb(93, 130, 174);
+background: rgba(91, 142, 196, 0.5);
 border-radius:5px;
 }
 

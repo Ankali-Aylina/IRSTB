@@ -11,7 +11,9 @@ class LogManagement : public QObject
 	Q_OBJECT
 
 public:
-	LogManagement(QObject* parent);
+	/// <summary>获取全局唯一的日志管理器实例</summary>
+	static LogManagement& instance();
+
 	~LogManagement();
 
 	enum LogLevel {
@@ -30,6 +32,8 @@ public slots:
 	void logMessage(const QString& message, LogLevel level);
 
 private:
+	LogManagement(QObject* parent = nullptr);
+
 	QMutex m_logMutex;
 	QFile m_logFile;
 	QString m_logPath = "app.log";

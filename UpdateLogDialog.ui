@@ -19,9 +19,9 @@
      <property name="styleSheet">
       <string notr="true">
 							#UpdataLogWidget{
-							background-color:rgb(45, 63, 85);
-							border-radius: 10px;
-							}
+background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2a3f5f, stop:1 #1a2a3f);
+border-radius: 10px;
+}
 						</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout">
@@ -59,8 +59,8 @@
         </property>
         <property name="styleSheet">
          <string notr="true">
-										background-color:rgb(73, 102, 136);
-										border-radius: 5px;
+										background: rgba(42, 63, 95, 0.85);
+border-radius: 8px;
 									</string>
         </property>
         <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -99,10 +99,11 @@
            <property name="styleSheet">
             <string notr="true">
 													#iconButton{
-													color:white;
-													background-color:rgb(93, 130, 174);
-													border-radius:5px;
-													}
+color: #e8e8e8;
+background: rgba(91, 142, 196, 0.5);
+border: 1px solid rgba(255,255,255,0.08);
+border-radius: 8px;
+}
 												</string>
            </property>
            <property name="text">
@@ -148,7 +149,7 @@
             <enum>Qt::LeftToRight</enum>
            </property>
            <property name="styleSheet">
-            <string notr="true">color:white;</string>
+            <string notr="true">color: #e8e8e8;</string>
            </property>
            <property name="text">
             <string>更新日志</string>
@@ -172,18 +173,19 @@
            <property name="styleSheet">
             <string notr="true">
 													#closeButton{
-													color:white;
-													background-color:rgb(93, 130, 174);
-													border-radius:5px;
-													}
+color: #e8e8e8;
+background: rgba(91, 142, 196, 0.4);
+border: 1px solid rgba(255,255,255,0.08);
+border-radius: 8px;
+}
 
-													#closeButton:hover{
-													background-color:rgb(114, 159, 212);
-													}
+#closeButton:hover{
+background: rgba(224, 64, 80, 0.7);
+}
 
-													#closeButton:pressed{
-													background-color:rgb(45, 63, 85);
-													}
+#closeButton:pressed{
+background: rgba(176, 16, 48, 0.8);
+}
 												</string>
            </property>
            <property name="text">
@@ -215,7 +217,7 @@
         <property name="styleSheet">
          <string notr="true">
 										#textBrowser{
-										color:white;
+										color: #e8e8e8;
 										border-radius:8px;
 										background-color:rgb(73, 102, 136);
 										}

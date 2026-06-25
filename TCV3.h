@@ -5,20 +5,17 @@
 #include <QWidget>
 #include <QApplication>
 #include <QMouseEvent>
-#include <QmessageBox>
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QAction>
 #include <QThread>
-#include <QSystemSemaphore>
-#include <QSharedMemory>
 #include "ui_TCV3.h"
-#include <QObject>
-#include <QDesktopServices>
 #include <QPushButton>
+#include <QAbstractButton>
 #include <QUrl>
-#include <QLockFile>
-#include <QProcess>
+
+#include <QPropertyAnimation>
+#include <QGraphicsOpacityEffect>
 
 #include "ExitWidgets.h"
 #include "TCCore.h"
@@ -26,6 +23,9 @@
 #include "IniManagement.h"
 #include "LogManagement.h"
 #include "UpdateLogDialog.h"
+#include "AppModuleManager.h"
+#include "IConfigProvider.h"
+#include "BluetoothStatusPresenter.h"
 
 class TCV3 : public QMainWindow
 {
@@ -40,14 +40,24 @@ public:
 	virtual void mouseMoveEvent(QMouseEvent* event) override;
 	virtual void mouseReleaseEvent(QMouseEvent* event) override;
 
-	bool isAppRunning(const QString& lockName);
-
 private:
 
 	QMetaObject::Connection m_fanControlConnection;
 
+	// 蓝牙状态呈现器（替代 7 个 bleXxx() 方法和 3 个 BLE 图标）
+	BluetoothStatusPresenter* m_blePresenter;
+
+	QIcon m_cpuNormalIcon;
+	QIcon m_cpuWarningIcon;
+	QIcon m_gpuNormalIcon;
+	QIcon m_gpuWarningIcon;
+
+	QIcon m_buttonOnIcon;
+	QIcon m_buttonOffIcon;
+
+	void preloadIcons();
+
 	///更新页面
-	// void updateIndex();
 
 	/// <summary>
 	/// 更新按钮图标
@@ -58,45 +68,27 @@ private:
 	};
 
 	QVector<ButtonIcons> m_buttonIcons;  // 图标缓存
-	QVector<QPushButton*> m_buttons;     // 按钮集合
+	QVector<QPushButton*> m_buttons;     // 菜单栏按钮集合
+	QVector<QPushButton*> m_fanModeButtons; // 风扇模式按钮集合 {Auto, Silent, Performance}
+
+	/// <summary>统一风扇模式 UI 更新和信号管理</summary>
+	void setFanMode(int activeIdx, bool enableAutoConnection);
 
 	///按钮图标更新
 	void updateButtonIcon();
+
+	/// <summary>
+	/// 页面切换动画（淡入淡出）
+	/// </summary>
+	void animatePageSwitch(int targetIndex);
+
+	QGraphicsOpacityEffect* m_pageOpacityEffect = nullptr;
 
 	///窗口最大化与还原
 	void showMaximizedOrNormal();
 
 	/// 退出提示窗口
 	void showExitWidgets();
-
-	void bleReconnectUi();
-
-	/// <summary>
-	/// 蓝牙搜索
-	/// </summary>
-	void bleScanStarting();
-
-	/// <summary>
-	/// 蓝牙搜索超时
-	/// </summary>
-	void bleScanTimeout();
-
-	/// <summary>
-	/// 蓝牙连接中
-	/// </summary>
-	void bleConnecting();
-
-	/// <summary>
-	/// 蓝牙连接失败
-	/// </summary>
-	void bleConnectionFailed();
-
-	/// <summary>
-	/// 蓝牙连接成功
-	/// </summary>
-	void bleConnected();
-
-	void bleDisconnected();
 
 	Ui::TCV3Class ui;
 
@@ -113,16 +105,19 @@ private:
 	//最小化到托盘类
 	QSystemTrayIcon* trayIcon;
 
-	//log管理类
-	LogManagement* o_Log;
+	// 模块管理器（统一管理 TCCore、BLEThread 等子系统）
+	AppModuleManager* m_moduleManager;
 
-	//TC核心功能类
-	TCCore* o_TCCore;
-	QThread* q_TCCore;
+	// 配置提供者（依赖注入，替代全局单例）
+	IConfigProvider* m_config;
 
-	//蓝牙线程
-	BLEThread* o_BLEThread;
-	QThread* q_BLEThread;
+	// 温度警告阈值（从配置加载，与 TemperatureConfig 保持同步）
+	int m_warningCpuThreshold = 80;
+	int m_warningGpuThreshold = 75;
+
+	static constexpr int kMinDelay = 1;
+	static constexpr int kMaxDelay = 10;
+	static constexpr int kDefaultDelay = 5;
 
 	/// <summary>
 	/// 初始化配置文件
@@ -134,12 +129,10 @@ private:
 	/// </summary>
 	/// <param name="temperature"> CPU温度 </param>
 	void onCpuTemperatureUpdated(int temperature);
-
-	/// <summary>
-	/// GPU温度更新
-	/// </summary>
-	/// <param name="temperature"> GPU温度 </param>
 	void onGpuTemperatureUpdated(int temperature);
+	void updateTempDisplay(int temperature, int warningThreshold,
+		QAbstractButton* iconBtn, QLabel* tempLabel, QProgressBar* bar,
+		const QIcon& normalIcon, const QIcon& warningIcon);
 
 	/// <summary>
 	/// 智能模式

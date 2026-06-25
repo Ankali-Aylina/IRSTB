@@ -211,7 +211,7 @@ TCV3::TCV3(QWidget* parent)
 	trayIconMenu->addAction(quitAction);
 	trayIcon->setContextMenu(trayIconMenu);
 
-	ui.aboutVersionLabel->setText(QString("V") + QString("3.3.2.3"));
+	ui.aboutVersionLabel->setText(QString("V") + QString("3.4.0.0"));
 
 	// --- 页面切换动画初始化 ---
 	m_pageOpacityEffect = new QGraphicsOpacityEffect(this);

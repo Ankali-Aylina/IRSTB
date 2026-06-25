@@ -182,13 +182,18 @@ private:
 	/// 扫面设备
 	/// </summary>
 	void scanDevices();
+	void scanDevicesRetry();
 	void scanVerifyDevice();
-	void scanDevicesInternal(ScannedBleDeviceCallback callback, bool setId);
+	void scanVerifyDeviceRetry();
+	void scanDevicesInternal(ScannedBleDeviceCallback callback, bool setId, bool emitStarted);
 
 	/// <summary>
 	/// 初始化蓝牙
 	/// </summary>
 	void initializeBle();
+
+	void performFirstConnectionRetry();
+	void connectToDeviceRetry(const QString& deviceId);
 
 	/// <summary>
 	/// 蓝牙首次链接

@@ -361,3 +361,42 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# ============================================================
+# TemperatureControlV3 项目特定
+# ============================================================
+
+# --- Qt 自动生成（UI 编译中间文件）---
+*.ui.INGPlS
+*.ui.kZvHmF
+*.ui.yeuOms
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# --- Inno Setup 安装包输出 ---
+installer/
+Temperat.*/
+
+# --- 发布制品 ---
+/TemperatureControlV3_v*.zip
+/TemperatureControlV3_v*.zip.sha256
+
+# --- 运行时生成（首次启动创建）---
+config.ini
+*.lock
+
+# --- 临时资源标记文件 ---
+RCa*
+RCb*
+
+# --- 代码分析 ---
+CodeAnalysisResultManifest.txt
+
+# --- NuGet 包（仅保留构建目标）---
+packages/
+!packages/repositories.config
+
+# --- 全局日志（精确匹配项目日志，不误伤子目录）---
+/app.log
+/app_*.log

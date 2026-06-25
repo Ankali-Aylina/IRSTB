@@ -115,6 +115,7 @@
   <ItemGroup>
     <ClCompile Include="AppModuleManager.cpp" />
     <ClCompile Include="ApplicationBootstrap.cpp" />
+    <ClCompile Include="ResourceExtractor.cpp" />
     <ClCompile Include="UpdateLogDialog.cpp" />
     <QtRcc Include="TCV3.qrc" />
     <QtUic Include="ExitWidgets.ui" />
@@ -153,6 +154,7 @@
     <ClInclude Include="IConfigProvider.h" />
     <ClInclude Include="NativeLibraryLoader.h" />
     <ClInclude Include="PawnIoDriverManager.h" />
+    <ClInclude Include="ResourceExtractor.h" />
     <ClInclude Include="TemperatureConfig.h" />
   </ItemGroup>
   <ItemGroup>
@@ -185,10 +187,5 @@
     </PropertyGroup>
     <Error Condition="!Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props'))" />
     <Error Condition="!Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets'))" />
-  </Target>
-  <Target Name="CopyIntelTempDll" AfterTargets="Build">
-    <Copy SourceFiles="res\lib\inteltemp.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="res\lib\IntelMSR.bin" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="res\lib\PawnIO_setup.exe" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('res\lib\PawnIO_setup.exe')" />
   </Target>
 </Project>

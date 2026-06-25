@@ -1,0 +1,86 @@
+name: Build & Package
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: 添加 MSBuild 到 PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: 恢复 NuGet 包
+        run: nuget restore TemperatureControlV3.sln
+
+      - name: 安装 Qt 6.11.1
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.11.1"
+          host: "windows"
+          target: "desktop"
+          arch: "win64_msvc2022_64"
+          modules: "qtcharts" # 如有需要可追加
+          cache: true
+
+      - name: 编译 Release|x64
+        run: msbuild TemperatureControlV3.sln /p:Configuration=Release /p:Platform=x64 /m /v:minimal
+
+      - name: windeployqt
+        run: |
+          $buildDir = "x64\Release"
+          windeployqt "$buildDir\TemperatureControlV3.exe" --no-translations
+
+      - name: 精简 & 打包
+        run: .\package.ps1 -SkipBuild
+        shell: pwsh
+
+      - name: 上传 zip 制品
+        uses: actions/upload-artifact@v4
+        with:
+          name: TemperatureControlV3-portable
+          path: TemperatureControlV3_v*_x64.zip
+
+      - name: 上传 SHA256
+        uses: actions/upload-artifact@v4
+        with:
+          name: TemperatureControlV3-sha256
+          path: TemperatureControlV3_v*_x64.zip.sha256
+
+      - name: 安装 Inno Setup
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: choco install innosetup --no-progress -y
+
+      - name: 编译安装包（仅 tag 推送）
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 7\ISCC.exe" installer.iss
+        shell: pwsh
+
+      - name: 上传安装包
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: TemperatureControlV3-setup
+          path: installer\TemperatureControlV3_v*_Setup.exe
+
+      - name: 创建 GitHub Release（仅 tag 推送）
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            TemperatureControlV3_v*_x64.zip
+            TemperatureControlV3_v*_x64.zip.sha256
+            installer\TemperatureControlV3_v*_Setup.exe
+          generate_release_notes: true

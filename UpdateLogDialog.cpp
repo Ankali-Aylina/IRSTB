@@ -29,7 +29,8 @@ UpdateLogDialog::UpdateLogDialog(QWidget* parent)
 	// 连接日志到全局单例
 	connect(this, &UpdateLogDialog::logMessage, &LogManagement::instance(), &LogManagement::logMessage);
 
-	mdFile = QCoreApplication::applicationDirPath() + "/updatalog.md";
+	// 优先从 QRC 直接读取（无需文件系统依赖）
+	mdFile = ":/TCV3/res/updatalog.md";
 	QFile file(mdFile);
 	if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
 		qWarning() << "无法打开文件:" << mdFile;

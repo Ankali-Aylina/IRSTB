@@ -1,5 +1,5 @@
 ﻿#include "TCCore.h"
-#include <QCoreApplication>
+#include "ResourceExtractor.h"
 
 TCCore::TCCore(IConfigProvider* config, QObject* parent)
 	: QObject(parent)
@@ -264,7 +264,7 @@ void TCCore::loadIntelLib()
 	// 初始化 IntelTemp（传递 IntelMSR.bin 完整路径）
 	if (m_inteltempInit)
 	{
-		QString binPath = QCoreApplication::applicationDirPath() + "/IntelMSR.bin";
+		QString binPath = ResourceExtractor::filePath("IntelMSR.bin");
 		int result = m_inteltempInit(reinterpret_cast<const wchar_t*>(binPath.utf16()));
 		if (result == 0) // INTELLTEMP_SUCCESS
 		{
@@ -300,8 +300,25 @@ void TCCore::loadAMDLib()
 	// 首次加载时调用 Init
 	if (m_amdInit && !m_amdInitialized)
 	{
-		m_amdInit();
-		m_amdInitialized = true;
+		int initResult = m_amdInit();
+		if (initResult == 0)
+		{
+			m_amdInitialized = true;
+			emit logMessage(QString("AMD驱动初始化成功"), LogManagement::LogLevel::LOG_INFO);
+		}
+		else
+		{
+			// amd_init 返回值: -1系统不支持 -2非AMD CPU -3驱动文件丢失/安装失败 -4CPU型号不支持
+			QString errMsg;
+			switch (initResult) {
+			case -1: errMsg = QStringLiteral("系统不支持（需要Windows 10+）"); break;
+			case -2: errMsg = QStringLiteral("非AMD CPU"); break;
+			case -3: errMsg = QStringLiteral("驱动文件丢失或安装失败（检查bin\\AMDRyzenMasterDriver.sys）"); break;
+			case -4: errMsg = QStringLiteral("CPU型号不支持"); break;
+			default: errMsg = QStringLiteral("未知错误(%1)").arg(initResult); break;
+			}
+			emit logMessage(QString("AMD驱动初始化失败: %1").arg(errMsg), LogManagement::LogLevel::LOG_ERROR);
+		}
 	}
 }
 

@@ -73,6 +73,9 @@
     <ClCompile Include="ApplicationBootstrap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ResourceExtractor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="ExitWidgets.h">
@@ -129,6 +132,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PawnIoDriverManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ResourceExtractor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TemperatureConfig.h">

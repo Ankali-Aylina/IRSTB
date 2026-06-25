@@ -292,12 +292,13 @@ void BLEThread::loadDeviceConfig()
 	m_scanCtx.targetName = m_deviceInfo.name;
 }
 
-void BLEThread::scanDevicesInternal(ScannedBleDeviceCallback callback, bool setId)
+void BLEThread::scanDevicesInternal(ScannedBleDeviceCallback callback, bool setId, bool emitStarted)
 {
 	ScannerGuard guard(this);
 	m_scanCtx.isFound.store(false, std::memory_order_release);
 
-	emit bleScanStarted();
+	if (emitStarted)
+		emit bleScanStarted();
 	QEventLoop loop;
 	QTimer timer, timer_maxtime;
 	timer.setSingleShot(false);
@@ -315,7 +316,8 @@ void BLEThread::scanDevicesInternal(ScannedBleDeviceCallback callback, bool setI
 	connect(&timer_maxtime, &QTimer::timeout, [&]() {
 		timer.stop();
 		timer_maxtime.stop();
-		emit bleScanTimeout();
+		if (emitStarted)
+			emit bleScanTimeout();
 		loop.quit();
 	});
 
@@ -326,8 +328,11 @@ void BLEThread::scanDevicesInternal(ScannedBleDeviceCallback callback, bool setI
 	m_bleFuncs.stopScan(m_bleHandle);
 }
 
-void BLEThread::scanDevices()      { scanDevicesInternal(bleDeviceScannedCallback, true); }
-void BLEThread::scanVerifyDevice() { scanDevicesInternal(bleVerifyDeviceCallback, false); }
+void BLEThread::scanDevices()      { scanDevicesInternal(bleDeviceScannedCallback, true, true); }
+void BLEThread::scanVerifyDevice() { scanDevicesInternal(bleVerifyDeviceCallback, false, true); }
+
+void BLEThread::scanDevicesRetry()      { scanDevicesInternal(bleDeviceScannedCallback, true, false); }
+void BLEThread::scanVerifyDeviceRetry() { scanDevicesInternal(bleVerifyDeviceCallback, false, false); }
 
 void BLEThread::initializeBle() {
 	// 防止重复初始化
@@ -361,6 +366,7 @@ void BLEThread::initializeBle() {
 
 	// 标记正在连接，防止 updateConnectionStatus 干扰
 	m_connecting.store(true, std::memory_order_release);
+	m_deviceInfo.retryCount = 0; // 重置重试计数器
 	if (m_config->read("BLE", "Init").toString() == "false") {
 		performFirstConnection();
 		return;
@@ -383,13 +389,56 @@ void BLEThread::performFirstConnection()
 			m_deviceInfo.retryCount++;
 			if (m_deviceInfo.retryCount < 3)
 			{
-				performFirstConnection();
+				performFirstConnectionRetry();
 				return;
 			}
 			else
 			{
 				emit logMessage(QString("连接失败！已超过最大重连次数！"), LogManagement::LogLevel::LOG_ERROR);
-				bleScanTimeout();//扫描超时信号
+				emit bleScanTimeout();
+				m_connecting.store(false, std::memory_order_release);
+				return;
+			}
+		}
+
+		emit connectionInProgress();
+
+		if (m_deviceInfo.isFind && m_deviceInfo.id != nullptr) {
+			if (m_bleFuncs.connectDevice(m_bleHandle, m_deviceInfo.id.toUtf8().constData())) {
+				m_config->write("BLE", "TargetID", m_deviceInfo.id);
+				m_config->write("BLE", "Init", "true");
+				emit logMessage(QString("连接成功！"), LogManagement::LogLevel::LOG_INFO);
+				m_deviceInfo.isConnected = true;
+				emit connected();
+			}
+			else {
+				emit logMessage(QString("连接失败！"), LogManagement::LogLevel::LOG_ERROR);
+				emit connectionFailed();
+			}
+		}
+	}
+	m_connecting.store(false, std::memory_order_release);
+}
+
+void BLEThread::performFirstConnectionRetry()
+{
+	scanDevicesRetry();
+
+	{
+		QMutexLocker lock(&m_operationMutex);
+		if (!m_deviceInfo.isFind)
+		{
+			emit logMessage(QString("连接超时！"), LogManagement::LogLevel::LOG_WARNING);
+			m_deviceInfo.retryCount++;
+			if (m_deviceInfo.retryCount < 3)
+			{
+				performFirstConnectionRetry();
+				return;
+			}
+			else
+			{
+				emit logMessage(QString("连接失败！已超过最大重连次数！"), LogManagement::LogLevel::LOG_ERROR);
+				emit bleScanTimeout();
 				m_connecting.store(false, std::memory_order_release);
 				return;
 			}
@@ -429,13 +478,54 @@ void BLEThread::connectToDevice(const QString& deviceId)
 			m_deviceInfo.retryCount++;
 			if (m_deviceInfo.retryCount < 3)
 			{
-				connectToDevice(deviceId);
+				connectToDeviceRetry(deviceId);
 				return;
 			}
 			else
 			{
 				emit logMessage(QString("连接失败！已超过最大重连次数！"), LogManagement::LogLevel::LOG_ERROR);
-				bleScanTimeout();//扫描超时信号
+				emit bleScanTimeout();
+				m_connecting.store(false, std::memory_order_release);
+				return;
+			}
+		}
+
+		emit connectionInProgress();
+
+		if (m_bleFuncs.connectDevice(m_bleHandle, deviceId.toUtf8().constData())) {
+			emit logMessage(QString("连接成功！"), LogManagement::LogLevel::LOG_INFO);
+			m_deviceInfo.isConnected = true;
+			emit connected();
+		}
+		else {
+			emit logMessage(QString("连接失败！"), LogManagement::LogLevel::LOG_ERROR);
+			emit connectionFailed();
+		}
+	}
+	m_connecting.store(false, std::memory_order_release);
+}
+
+void BLEThread::connectToDeviceRetry(const QString& deviceId)
+{
+	m_scanCtx.foundDeviceId = deviceId;
+
+	scanVerifyDeviceRetry();
+
+	{
+		QMutexLocker lock(&m_operationMutex);
+		if (!m_deviceInfo.isFind)
+		{
+			emit logMessage(QString("连接超时！"), LogManagement::LogLevel::LOG_WARNING);
+			m_deviceInfo.retryCount++;
+			if (m_deviceInfo.retryCount < 3)
+			{
+				connectToDeviceRetry(deviceId);
+				return;
+			}
+			else
+			{
+				emit logMessage(QString("连接失败！已超过最大重连次数！"), LogManagement::LogLevel::LOG_ERROR);
+				emit bleScanTimeout();
 				m_connecting.store(false, std::memory_order_release);
 				return;
 			}

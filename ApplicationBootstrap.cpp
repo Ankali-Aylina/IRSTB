@@ -1,5 +1,6 @@
 #include "ApplicationBootstrap.h"
 #include "PawnIoDriverManager.h"
+#include "ResourceExtractor.h"
 #include "TCV3.h"
 
 #include <QApplication>
@@ -47,6 +48,9 @@ bool ApplicationBootstrap::ensureAdminPrivilege(int argc, char *argv[]) {
 int ApplicationBootstrap::run(int argc, char *argv[]) {
   QApplication app(argc, argv);
 
+  // 设置应用版本（供 ResourceExtractor 版本缓存使用）
+  app.setApplicationVersion("3.4.0.0");
+
   if (!ensureAdminPrivilege(argc, argv))
     return -1;
 
@@ -56,6 +60,14 @@ int ApplicationBootstrap::run(int argc, char *argv[]) {
   QLockFile lockFile(lockPath);
   if (!lockFile.tryLock(100)) {
     QMessageBox::warning(nullptr, "警告", "程序已在运行，无法重复启动！");
+    return -1;
+  }
+
+  // --- 从 QRC 提取运行时资源到临时目录 ---
+  QString extractDir = ResourceExtractor::extract();
+  if (extractDir.isEmpty()) {
+    QMessageBox::warning(nullptr, QStringLiteral("启动失败"),
+                         QStringLiteral("无法解压运行时资源文件。"));
     return -1;
   }
 
@@ -73,8 +85,7 @@ int ApplicationBootstrap::run(int argc, char *argv[]) {
                               QMessageBox::Yes | QMessageBox::No);
 
     if (result == QMessageBox::Yes) {
-      QString setupPath =
-          QCoreApplication::applicationDirPath() + "/PawnIO_setup.exe";
+      QString setupPath = ResourceExtractor::filePath("PawnIO_setup.exe");
       if (!PawnIoDriverManager::install(setupPath)) {
         QMessageBox::warning(
             nullptr, QStringLiteral("安装失败"),

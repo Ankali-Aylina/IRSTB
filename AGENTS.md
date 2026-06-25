@@ -8,8 +8,7 @@
 - **Qt**：6.11.1 msvc2022_64，模块：`core;gui;widgets;concurrent`（通过 Qt VS Tools 集成）
 - **Windows SDK**：10.0.28000.0
 - **NuGet**：C++/WinRT 2.0.240405.15（仅构建工具，项目中没有 `.idl` 文件，无 WinRT API）
-- **构建后步骤**：将 `res\lib\inteltemp.dll`、`IntelMSR.bin`、`PawnIO_setup.exe` 复制到 `$(OutDir)`
-- **运行**：需要 `config.ini` 和 `res/` 目录在 exe 旁边；发布版本需要 `platforms/`、`styles/` 等 Qt 插件 DLL
+- **运行**：Release 构建下只需 `config.ini`（首次运行自动生成）和 Qt 运行时 DLL（`platforms/`、`styles/` 等）；原生 DLL 和 `bin/` 已嵌入 exe，启动时自动提取到 `%TEMP%`
 
 ## 架构
 
@@ -19,6 +18,7 @@
 main.cpp → ApplicationBootstrap::run()
   ├── UAC 提权（runas）
   ├── 单实例锁（QLockFile）
+  ├── ResourceExtractor::extract()（从 QRC 提取 DLL 等到 %TEMP%）
   ├── PawnIO 驱动版本检查
   └── TCV3 主窗口（QMainWindow）
         └── AppModuleManager（拥有 IAppModule 实例）
@@ -33,11 +33,13 @@ main.cpp → ApplicationBootstrap::run()
 ### 模块系统（2026-06-20 重构）
 
 所有子系统均实现 `IAppModule`（`IAppModule.h`）：
+
 - `initialize()` — 加载配置/资源
 - `start()` — 创建工作线程，开始处理
 - `stop(timeoutMs)` — 优雅关闭：设置原子停止标志，`quit()+wait()`，移回主线程
 
 使用 `AppModuleManager`：
+
 ```cpp
 m_moduleManager->registerModule<TCCore>(m_config);  // 转发构造函数参数
 m_moduleManager->registerModule<BLEThread>(m_config);
@@ -55,15 +57,76 @@ m_moduleManager->stopAll();  // 逆序停止（BLE 在 TCCore 之前）
 
 `LogManagement`（`LogManagement.h`）是全局单例。模块发出 `logMessage(level, text)` 信号；TCV3 将它们连接到 `LogManagement::instance()`。**绝不**创建新的 `LogManagement` 实例。
 
-### DLL 加载
+### DLL 加载与资源提取
 
-所有原生 DLL 通过 `NativeLibraryLoader`（`NativeLibraryLoader.h`）加载——一次性加载，使用初始化列表批量解析符号。**切勿**直接使用原始 `QLibrary`。
+所有原生 DLL 通过 `NativeLibraryLoader`（`NativeLibraryLoader.h`）从**文件系统**加载（`QLibrary::load("xxx.dll")`）。但 DLL 文件不再需要单独分发——它们已嵌入 `TCV3.qrc`，启动时由 `ResourceExtractor` 自动提取到 `%TEMP%/TemperatureControlV3_Resources/`：
+
+| DLL 文件        | 加载位置  | 用途            |
+| --------------- | --------- | --------------- |
+| `Cpu_Dll.dll`   | TCCore    | CPU 类型检测    |
+| `inteltemp.dll` | TCCore    | Intel CPU 温度  |
+| `amd_dll.dll`   | TCCore    | AMD CPU 温度    |
+| `nv_dll.dll`    | TCCore    | NVIDIA GPU 温度 |
+| `BLEDll.dll`    | BLEThread | 蓝牙 LE 通信    |
+
+> **工作原理**：`ApplicationBootstrap::run()` 调用 `ResourceExtractor::extract()` → 从 QRC 复制文件到 `%TEMP%` → 调用 `SetDllDirectoryW` 将临时目录加入 DLL 搜索路径 → `NativeLibraryLoader` 从搜索路径中找到 DLL。版本标记文件确保只在版本变化时重新提取。
+
+加载时使用初始化列表批量解析符号，**切勿**直接使用原始 `QLibrary`。
+
+**添加新的运行时文件时**：将文件放入 `res/lib/`（或 `res/lib/bin/`），在 `TCV3.qrc` 中注册，并在 `ResourceExtractor.cpp` 的 `kEntries[]` 中添加映射。
 
 ### 线程与原子操作
 
 - TCCore 和 BLEThread 之间的通信通过信号/槽，使用 `Qt::QueuedConnection` 连接
 - 使用 `std::atomic<bool>` 配合 `memory_order_acquire/release`（非 `seq_cst`）作为停止标志
 - `BLEThread` 使用 `static std::atomic<BLEThread*> s_activeScanner` 将无上下文的 DLL 回调路由到正确的实例——添加新的 BLE 回调时保留此模式
+
+## 发布打包
+
+Release 构建下，原生 DLL 和 `bin/` 已全部嵌入 exe 的 QRC 中。发布时只需分发以下文件：
+
+**必须的文件：**
+
+| 文件/目录                                                                     | 说明                                                 |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `TemperatureControlV3.exe`                                                    | 主程序（已内嵌所有原生 DLL、`bin/`、图标、更新日志） |
+| `Qt6Core.dll`, `Qt6Gui.dll`, `Qt6Widgets.dll`, `Qt6Network.dll`, `Qt6Svg.dll` | Qt 运行时                                            |
+| `platforms/qwindows.dll`                                                      | Qt 平台插件（**必须**，否则无法创建窗口）            |
+| `styles/`                                                                     | Qt 样式插件                                          |
+| `imageformats/`, `iconengines/`                                               | 图片格式和 SVG 支持                                  |
+| `networkinformation/`, `tls/`                                                 | 网络状态和 SSL                                       |
+| `D3Dcompiler_47.dll`, `opengl32sw.dll`                                        | 图形依赖                                             |
+
+**注意**：`config.ini` 首次运行自动生成，无需手动提供。
+
+**可精简的：**
+
+| 文件            | 说明                   |
+| --------------- | ---------------------- |
+| `translations/` | 如只需中文可删除       |
+| `app.log`       | 运行时日志，发布时删除 |
+
+**打包步骤：**
+
+1. 构建 Release 配置
+2. 删除输出目录中的 `app.log`
+3. 使用 `windeployqt TemperatureControlV3.exe --no-translations` 补全 Qt 依赖
+4. 将所有文件打包为 zip
+5. 提醒用户需安装 [VC Redist x64](https://aka.ms/vs/17/release/vc_redist.x64.exe)（项目使用 `/MD` 动态链接）
+
+**自动化脚本**：`package.ps1` — 一键编译 + windeployqt + 精简 + 打包。
+
+```powershell
+.\package.ps1                           # 完整流程
+.\package.ps1 -SkipBuild                # 跳过编译，直接打包
+.\package.ps1 -QtPath "D:\Qt\6.11.1\msvc2022_64"  # 指定 Qt 路径
+```
+
+**安装包**：`installer.iss` — [Inno Setup](https://jrsoftware.org/isinfo.php) 脚本，生成带桌面快捷方式、卸载支持的安装程序。
+
+1. 先运行 `.\package.ps1 -SkipBuild` 准备 Release 文件
+2. 用 Inno Setup 打开 `installer.iss` → 编译 → 输出到 `installer\` 目录
+3. 自动检测 VC Redist，缺失时引导用户下载
 
 ## 约定
 

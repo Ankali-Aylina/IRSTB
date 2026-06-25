@@ -16,11 +16,11 @@
 
 ## 硬件设计
 
-| 组件 | 型号 |
-|------|------|
-| 主控芯片 | CW32L010 |
-| 蓝牙模块 | DX-BT24-T |
-| 风扇 | 12V 直流（利民 TL-C12） |
+| 组件     | 型号                    |
+| -------- | ----------------------- |
+| 主控芯片 | CW32L010                |
+| 蓝牙模块 | DX-BT24-T               |
+| 风扇     | 12V 直流（利民 TL-C12） |
 
 ## 成品展示
 
@@ -31,12 +31,12 @@
 
 ## 系统要求（TCV3 上位机）
 
-| 要求 | 说明 |
-|------|------|
-| 操作系统 | Windows 10/11 64-bit |
-| 运行时 | [VC Redist x64](https://aka.ms/vs/17/release/vc_redist.x64.exe) |
-| CPU | Intel (需 PawnIO 驱动) / AMD (需 AMDRyzenMaster 驱动) |
-| GPU | NVIDIA (nv_dll) |
+| 要求     | 说明                                                            |
+| -------- | --------------------------------------------------------------- |
+| 操作系统 | Windows 10/11 64-bit                                            |
+| 运行时   | [VC Redist x64](https://aka.ms/vs/17/release/vc_redist.x64.exe) |
+| CPU      | Intel (需 PawnIO 驱动) / AMD (需 AMDRyzenMaster 驱动)           |
+| GPU      | NVIDIA (nv_dll)                                                 |
 
 ## 快速开始
 
@@ -83,36 +83,40 @@ TemperatureControlV3/
 
 ## 技术栈
 
-| 技术 | 版本 |
-|------|------|
-| C++ | 20 |
-| Qt | 6.11.1 (Core/Gui/Widgets/Concurrent/Network/Svg) |
-| Visual Studio | 2022 (v145, MSVC) |
-| Inno Setup | 7.x |
-| 驱动 | PawnIO / AMDRyzenMasterV27 |
+| 技术          | 版本                                             |
+| ------------- | ------------------------------------------------ |
+| C++           | 20                                               |
+| Qt            | 6.11.1 (Core/Gui/Widgets/Concurrent/Network/Svg) |
+| Visual Studio | 2022 (v145, MSVC)                                |
+| Inno Setup    | 7.x                                              |
+| 驱动          | PawnIO / AMDRyzenMasterV27                       |
 
 ## 更新日志
 
 参见 [res/updatalog.md](res/updatalog.md) 或程序内更新日志页面。
 
-| 版本 | 主要变更 |
-|------|----------|
+| 版本         | 主要变更                                       |
+| ------------ | ---------------------------------------------- |
 | **v3.4.0.0** | 修复大量 bug，更换 Intel 温度读取驱动，更新 UI |
-| v3.3.2.x | UI 优化、设备检测优化、更新日志页面 |
-| v3.3.0.0 | BLE 蓝牙库重构，轻量化运行 |
-| v3.2.0.0 | 添加 AMD 驱动兼容 |
-| v3.1.0.0 | 移除 LibreHardwareMonitor，添加 CPU 类型识别 |
-| v3.0.0.0 | 重构为 Qt6 框架 |
-| v2.0.0.0 | C# 重构，LibreHardwareMonitor 集成 |
-| v1.0.0.0 | 命令行基础控制 |
+| v3.3.2.x     | UI 优化、设备检测优化、更新日志页面            |
+| v3.3.0.0     | BLE 蓝牙库重构，轻量化运行                     |
+| v3.2.0.0     | 添加 AMD 驱动兼容                              |
+| v3.1.0.0     | 移除 LibreHardwareMonitor，添加 CPU 类型识别   |
+| v3.0.0.0     | 重构为 Qt6 框架                                |
+| v2.0.0.0     | C# 重构，LibreHardwareMonitor 集成             |
+| v1.0.0.0     | 命令行基础控制                                 |
 
 ## 贡献者
 
-| 贡献者 | 角色 |
-|--------|------|
-| [Ankali-Aylina](https://github.com/Ankali-Aylina) | 项目作者，全栈开发 |
-| [DeepSeek V4 Pro](https://chat.deepseek.com) | AI 编程助手，代码生成与问题诊断 |
+| 贡献者                                            | 角色                            |
+| ------------------------------------------------- | ------------------------------- |
+| [Ankali-Aylina](https://github.com/Ankali-Aylina) | 项目作者，全栈开发              |
+| [DeepSeek V4 Pro](https://chat.deepseek.com)      | AI 编程助手，代码生成与问题诊断 |
 
 ## 许可证
 
-本项目采用 [MIT License](LICENSE.txt)。
+本项目代码使用 [MIT License](LICENSE.txt)。
+
+本软件使用 [Qt](https://www.qt.io/) 框架，Qt 库文件以 LGPLv3 许可证动态链接分发。
+Qt 源码可从 https://www.qt.io/download-open-source 获取。
+用户有权自行替换本软件附带的 Qt 库文件（Qt6Core.dll、Qt6Gui.dll 等）。

@@ -85,6 +85,30 @@ Type: files; Name: "{app}\app_*.log"
 Type: files; Name: "{app}\config.ini"
 
 [Code]
+function IsAppRunning: Boolean;
+begin
+  Result := FindWindowByWindowName('TCV3') <> 0;
+end;
+
+procedure KillRunningApp;
+var
+  ErrorCode: Integer;
+begin
+  // 先尝试优雅关闭
+  if IsAppRunning then
+  begin
+    if MsgBox('{#MyAppName} 正在运行，需要关闭后才能继续。' + #13#10#13#10 +
+              '是否关闭程序并继续？',
+              mbConfirmation, MB_YESNO) = IDYES then
+    begin
+      Exec('taskkill', '/F /IM TemperatureControlV3.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+      Sleep(1000);
+    end
+    else
+      Abort;
+  end;
+end;
+
 function IsPawnIODriverInstalled: Boolean;
 var
   Version: String;
@@ -104,6 +128,9 @@ function InitializeSetup: Boolean;
 var
   ErrorCode: Integer;
 begin
+  // 安装/升级前关闭运行中的旧版本
+  KillRunningApp;
+
   if not IsVCppRedistInstalled then
   begin
     if MsgBox('检测到未安装 Visual C++ 运行时库。' + #13#10#13#10 +

@@ -1,4 +1,5 @@
 ﻿#include "TCV3.h"
+#include "ApplicationBootstrap.h"
 #include <QDesktopServices>
 #include <QDir>
 #include <QMessageBox>
@@ -493,7 +494,9 @@ void TCV3::resetSettings()
 	);
 
 	if (reply == QMessageBox::Yes) {
-		// 启动新实例并关闭当前程序
+		// 先释放单实例锁，再启动新实例（避免竞态条件）
+		ApplicationBootstrap::releaseLock();
+		setAutoStart(false);  // 清除注册表中的开机自启项
 		m_config->deleteFile();
 		QProcess::startDetached(QApplication::applicationFilePath());
 		QApplication::quit(); // 关闭当前程序

@@ -88,6 +88,16 @@ Type: files; Name: "{app}\app_*.log"
 var
   SavedAutoStart: String;  // 升级时暂存旧版开机自启设置
 
+function GetOldAppPath: String;
+var
+  UninstKey: String;
+begin
+  Result := '';
+  UninstKey := 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{D2AC4FC9-8819-4172-AB93-5C2129504C89}_is1';
+  if not RegQueryStringValue(HKLM, UninstKey, 'InstallLocation', Result) then
+    RegQueryStringValue(HKLM, UninstKey, 'Inno Setup: App Path', Result);
+end;
+
 function IsAppRunning: Boolean;
 begin
   Result := FindWindowByWindowName('TCV3') <> 0;
@@ -130,16 +140,16 @@ end;
 function InitializeSetup: Boolean;
 var
   ErrorCode: Integer;
-  OldIniPath: String;
+  OldPath: String;
 begin
   // 安装/升级前关闭运行中的旧版本
   KillRunningApp;
 
-  // 升级前保存旧版开机自启设置
+  // 升级前保存旧版开机自启设置（通过注册表获取旧安装路径，避免使用未初始化的 {app}）
   SavedAutoStart := '';
-  OldIniPath := ExpandConstant('{app}\config.ini');
-  if FileExists(OldIniPath) then
-    SavedAutoStart := GetIniString('UI', 'AutoStart', '', OldIniPath);
+  OldPath := GetOldAppPath;
+  if OldPath <> '' then
+    SavedAutoStart := GetIniString('UI', 'AutoStart', '', OldPath + '\config.ini');
 
   if not IsVCppRedistInstalled then
   begin

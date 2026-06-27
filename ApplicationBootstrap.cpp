@@ -45,20 +45,29 @@ bool ApplicationBootstrap::ensureAdminPrivilege(int argc, char *argv[]) {
   return false; // 返回 false 让 run() 退出，不再创建窗口
 }
 
+std::unique_ptr<QLockFile> ApplicationBootstrap::s_lockFile;
+
+void ApplicationBootstrap::releaseLock() {
+  if (s_lockFile) {
+    s_lockFile->unlock();
+    s_lockFile.reset();
+  }
+}
+
 int ApplicationBootstrap::run(int argc, char *argv[]) {
   QApplication app(argc, argv);
 
   // 设置应用版本（供 ResourceExtractor 版本缓存使用）
-  app.setApplicationVersion("3.4.0.0");
+  app.setApplicationVersion("3.4.0.1");
 
   if (!ensureAdminPrivilege(argc, argv))
     return -1;
 
-  // 单实例锁（栈变量，app.exec() 返回时自动析构释放锁）
+  // 单实例锁（静态成员，可通过 releaseLock() 在重启前手动释放）
   QString lockPath =
       QDir::tempPath() + "/" + QCoreApplication::applicationName() + ".lock";
-  QLockFile lockFile(lockPath);
-  if (!lockFile.tryLock(100)) {
+  s_lockFile = std::make_unique<QLockFile>(lockPath);
+  if (!s_lockFile->tryLock(100)) {
     QMessageBox::warning(nullptr, "警告", "程序已在运行，无法重复启动！");
     return -1;
   }
@@ -96,5 +105,7 @@ int ApplicationBootstrap::run(int argc, char *argv[]) {
 
   TCV3 window;
   window.show();
-  return app.exec();
+  int ret = app.exec();
+  s_lockFile.reset();  // 正常退出时释放锁
+  return ret;
 }

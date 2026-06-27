@@ -35,7 +35,14 @@ struct TemperatureConfig
 		readInt("WarningGpu", cfg.warningGpuThreshold);
 		readInt("HistorySize", cfg.historySize);
 
-		if (cfg.historySize < 1) cfg.historySize = 5;
+		// 范围校验：确保非法值不会导致异常行为
+		if (cfg.initCpuTemp < 20 || cfg.initCpuTemp > 100) cfg.initCpuTemp = 40;
+		if (cfg.initGpuTemp < 20 || cfg.initGpuTemp > 100) cfg.initGpuTemp = 40;
+		if (cfg.cpuStep < 1 || cfg.cpuStep > 50) cfg.cpuStep = 10;
+		if (cfg.gpuStep < 1 || cfg.gpuStep > 50) cfg.gpuStep = 8;
+		if (cfg.warningCpuThreshold < 30 || cfg.warningCpuThreshold > 120) cfg.warningCpuThreshold = 80;
+		if (cfg.warningGpuThreshold < 30 || cfg.warningGpuThreshold > 120) cfg.warningGpuThreshold = 75;
+		if (cfg.historySize < 1 || cfg.historySize > 20) cfg.historySize = 5;
 		if (cfg.weights.size() != static_cast<size_t>(cfg.historySize))
 		{
 			cfg.weights.assign(cfg.historySize, 1.0f);

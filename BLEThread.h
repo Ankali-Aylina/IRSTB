@@ -15,31 +15,41 @@
 #include "NativeLibraryLoader.h"
 #include "TemperatureConfig.h"
 
-// DLL 函数指针类型
-using BleHandle = void*;
+// WinRT_BLE_DLL 错误码（对应 API_REFERENCE.md §2）
+using BleError = int;
+constexpr BleError BLE_OK                       =   0;  // 成功
+constexpr BleError BLE_ERROR_NOT_INITIALIZED    =  -1;  // BleInitialize() 未调用
+constexpr BleError BLE_ERROR_INVALID_PARAM      =  -2;  // 空指针或空字符串
+constexpr BleError BLE_ERROR_DEVICE_NOT_FOUND   =  -3;  // 未找到设备，需先在 Windows 设置中配对
+constexpr BleError BLE_ERROR_ACCESS_DENIED      =  -4;  // 访问被拒，需在 Windows 蓝牙设置中配对
+constexpr BleError BLE_ERROR_UNREACHABLE        =  -5;  // 超出范围或已连接至其他主机
+constexpr BleError BLE_ERROR_GATT_FAILED        =  -6;  // GATT 通信错误
+constexpr BleError BLE_ERROR_NOT_CONNECTED      =  -7;  // 未连接任何设备
+constexpr BleError BLE_ERROR_SERVICE_NOT_FOUND  =  -8;  // 设备上未找到该 Service UUID
+constexpr BleError BLE_ERROR_CHAR_NOT_FOUND     =  -9;  // 服务中未找到该 Characteristic UUID
+constexpr BleError BLE_ERROR_READ_FAILED        = -10;  // 读取操作失败
+constexpr BleError BLE_ERROR_WRITE_FAILED       = -11;  // 写入操作失败
+constexpr BleError BLE_ERROR_NOTIFY_UNSUPPORTED = -12;  // 特征不支持 Notify/Indicate
+constexpr BleError BLE_ERROR_INTERNAL           = -99;  // 内部错误
 
-using ScannedBleDeviceCallback = void(*)(void* device, const char* name, const char* address, const char* deviceId, int rssi);
+// WinRT_BLE_DLL 回调类型
+using BleScanCallback = void(*)(const wchar_t* address, const wchar_t* name, int16_t rssi, void* userData);
+using BleConnectionCallback = void(*)(const wchar_t* address, int connected, const wchar_t* error, void* userData);
 
-using CreateBleHandleFunc = BleHandle(*)();
-using DestroyBleHandleFunc = void(*)(BleHandle);
-using StartBleScanFunc = void(*)(BleHandle, ScannedBleDeviceCallback); // 参数改为 BleHandle（void*）
-using StopBleScanFunc = void(*)(BleHandle);
-using ConnectBleDeviceFunc = bool(*)(BleHandle, const char* deviceId);
-using DisconnectBleDeviceFunc = void(*)(BleHandle);
-using CheckCharacteristicWritePermissionfunc = bool(*)(BleHandle, unsigned int serviceUUID, unsigned int characteristicUUID);
-using WriteBleCharacteristicFunc = bool(*)(BleHandle, unsigned int ServiceUUID, unsigned int CharacteristicUUID, const unsigned char* buffer, unsigned int length, bool requireResponse);
-using IsConnectedFunc = bool(*)(BleHandle);
-
-// 前向声明（回调实现在 .cpp 中，通过 s_activeScanner 路由到实例）
-void bleDeviceScannedCallback(void* device, const char* name, const char* address, const char* deviceId, int rssi);
-void bleVerifyDeviceCallback(void* device, const char* name, const char* address, const char* deviceId, int rssi);
+// WinRT_BLE_DLL 函数指针类型
+using BleInitializeFunc = int(*)();
+using BleUninitializeFunc = void(*)();
+using BleStartScanFunc = int(*)(BleScanCallback, void*);
+using BleStopScanFunc = void(*)(int);
+using BleConnectFunc = int(*)(const wchar_t*, BleConnectionCallback, void*);
+using BleDisconnectFunc = void(*)(int);
+using BleIsConnectedFunc = int(*)(int);
+using BleWriteCharacteristicFunc = BleError(*)(int, const wchar_t*, const wchar_t*, const uint8_t*, uint32_t);
+using BleGetLastErrorFunc = BleError(*)();
+using BleErrorToStringFunc = const wchar_t*(*)(BleError);
 
 class BLEThread : public QObject, public IAppModule {
 	Q_OBJECT
-
-	// DLL 回调友元（通过 s_activeScanner 路由到实例）
-	friend void bleDeviceScannedCallback(void*, const char*, const char*, const char*, int);
-	friend void bleVerifyDeviceCallback(void*, const char*, const char*, const char*, int);
 
 public:
 	explicit BLEThread(IConfigProvider* config, QObject* parent = nullptr);
@@ -53,181 +63,118 @@ public:
 public slots:
 	void run();
 
-	/// <summary>
-	/// 设备重连
-	/// </summary>
+	/// <summary>设备重连</summary>
 	void reconnectDevice();
 
-	/// <summary>
-	/// 检测蓝牙连接状态
-	/// </summary>
+	/// <summary>检测蓝牙连接状态</summary>
 	void updateConnectionStatus();
 
-	/// <summary>
-	/// 风扇转速控制
-	/// </summary>
-	/// <param name="buff"></param>
+	/// <summary>风扇转速控制</summary>
 	void controlFan(char* buff);
 
-	/// <summary>
-	/// 自动模式
-	/// </summary>
+	/// <summary>自动模式</summary>
 	void autoMode();
 
-	/// <summary>
-	/// 静音模式
-	/// </summary>
+	/// <summary>静音模式</summary>
 	void silentMode();
 
-	/// <summary>
-	/// 全速模式
-	/// </summary>
+	/// <summary>全速模式</summary>
 	void performanceMode();
 
 signals:
-	/// <summary>
-	///  扫描开始
-	/// </summary>
 	void bleScanStarted();
-
-	/// <summary>
-	/// 扫描超时
-	/// </summary>
 	void bleScanTimeout();
-
-	/// <summary>
-	/// 连接中
-	/// </summary>
 	void connectionInProgress();
-
-	/// <summary>
-	/// 连接失败
-	/// </summary>
 	void connectionFailed();
-
-	/// <summary>
-	/// 连接成功
-	/// </summary>
 	void connected();
-
-	/// <summary>
-	/// 断开连接
-	/// </summary>
 	void disconnected();
-
-	/// <summary>
-	/// 日志数据
-	/// </summary>
-	/// <param name="message"> 日志消息 </param>
-	/// <param name="level"> 日志级别 </param>
 	void logMessage(const QString& message, LogManagement::LogLevel level);
 
 private:
-	/// <summary>BLE DLL 函数指针表（实例级别，替代全局静态变量）</summary>
+	/// <summary>BLE DLL 函数指针表</summary>
 	struct BLEFunctionTable {
-		CreateBleHandleFunc createHandle = nullptr;
-		DestroyBleHandleFunc destroyHandle = nullptr;
-		StartBleScanFunc startScan = nullptr;
-		StopBleScanFunc stopScan = nullptr;
-		ConnectBleDeviceFunc connectDevice = nullptr;
-		DisconnectBleDeviceFunc disconnectDevice = nullptr;
-		CheckCharacteristicWritePermissionfunc checkCharacteristicWritePermission = nullptr;
-		WriteBleCharacteristicFunc writeDataByCharacteristic = nullptr;
-		IsConnectedFunc isConnected = nullptr;
+		BleInitializeFunc initialize = nullptr;
+		BleUninitializeFunc uninitialize = nullptr;
+		BleStartScanFunc startScan = nullptr;
+		BleStopScanFunc stopScan = nullptr;
+		BleConnectFunc connect = nullptr;
+		BleDisconnectFunc disconnect = nullptr;
+		BleIsConnectedFunc isConnected = nullptr;
+		BleWriteCharacteristicFunc writeCharacteristic = nullptr;
+		BleGetLastErrorFunc getLastError = nullptr;
+		BleErrorToStringFunc errorToString = nullptr;
 	};
 
-	/// <summary>扫描上下文（替代全局 g_name / g_deviceId / g_isFind）</summary>
+	/// <summary>扫描上下文</summary>
 	struct ScanContext {
 		QString targetName;
-		QString foundDeviceId;
+		QString foundAddress;
 		std::atomic<bool> isFound{ false };
 	};
 
 	struct BleDeviceInfo {
-		QString id; // 设备ID
-		QString name; // 设备名称
-		quint16 serviceUuid = 0xFFE0; // 服务UUID
-		quint16 characteristicUuid = 0xFFE1; // 特征UUID
-		int retryCount = 0; // 重试次数
-		bool isFind = false; // 是否找到
-		bool isConnected = false; // 是否已连接
+		QString address;       // 设备蓝牙地址（十进制字符串）
+		QString name;          // 设备名称
+		quint16 serviceUuid = 0xFFE0;       // 服务UUID（16位）
+		quint16 characteristicUuid = 0xFFE1; // 特征UUID（16位）
+		int retryCount = 0;
+		bool isFind = false;
+		bool isConnected = false;
 	};
 
-	BleHandle m_bleHandle = nullptr;
+	// 回调（静态方法，通过 userData 路由到实例）
+	static void onDeviceScanned(const wchar_t* address, const wchar_t* name, int16_t rssi, void* userData);
+	static void onConnectionChanged(const wchar_t* address, int connected, const wchar_t* error, void* userData);
+
+	// 内部连接等待回调
+	static void onFirstConnResult(const wchar_t* address, int connected, const wchar_t* error, void* userData);
+
+	int m_scanId = -1;
+	int m_connectionId = -1;
 	NativeLibraryLoader m_bleLoader;
-	BLEFunctionTable m_bleFuncs; // 实例级 DLL 函数指针
-	ScanContext m_scanCtx;       // 实例级扫描上下文
+	BLEFunctionTable m_bleFuncs;
+	ScanContext m_scanCtx;
 	BleDeviceInfo m_deviceInfo;
 	QMutex m_operationMutex;
 	QMutex m_fanControlMutex;
 	QMutex m_modeMutex;
-	IConfigProvider* m_config; // 配置提供者（依赖注入）
-	QThread* m_workThread = nullptr; // 自管理的工作线程（仅当作为独立模块时使用）
+	IConfigProvider* m_config;
+	QThread* m_workThread = nullptr;
 
 	// 并发控制
-	std::atomic<bool> m_bleInitialized{ false }; // BLE 已初始化（防止重复 initializeBle）
-	std::atomic<bool> m_connecting{ false };     // 正在连接中（防止 updateConnectionStatus 干扰）
+	std::atomic<bool> m_bleInitialized{ false };
+	std::atomic<bool> m_connecting{ false };
+	std::atomic<bool> m_connResult{ false }; // 连接回调结果
 
-	/// <summary>
-	/// 初始化配置文件
-	/// </summary>
+	/// <summary>将 16 位 UUID 整数转为宽字符串（如 0xFFE0 → "FFE0"）</summary>
+	static QString uuidToString(quint16 uuid);
+
+	/// <summary>将 BleError 转为带排查建议的日志消息</summary>
+	QString bleErrorToMessage(BleError err) const;
+
 	void initializeIniFile();
-
-	/// <summary>
-	/// 加载设备配置文件
-	/// </summary>
 	void loadDeviceConfig();
 
-	/// <summary>
-	/// 扫面设备
-	/// </summary>
 	void scanDevices();
 	void scanDevicesRetry();
 	void scanVerifyDevice();
 	void scanVerifyDeviceRetry();
-	void scanDevicesInternal(ScannedBleDeviceCallback callback, bool setId, bool emitStarted);
+	void scanDevicesInternal(bool matchByName, bool setId, bool emitStarted);
 
-	/// <summary>
-	/// 初始化蓝牙
-	/// </summary>
 	void initializeBle();
 
-	void performFirstConnectionRetry();
-	void connectToDeviceRetry(const QString& deviceId);
-
-	/// <summary>
-	/// 蓝牙首次链接
-	/// </summary>
 	void performFirstConnection();
+	void performFirstConnectionRetry();
+	void connectToDevice(const QString& address);
+	void connectToDeviceRetry(const QString& address);
 
-	/// <summary>
-	/// 蓝牙非第一次链接
-	/// </summary>
-	/// <param name="deviceId"></param>
-	void connectToDevice(const QString& deviceId);
+	/// <summary>异步连接并等待回调结果</summary>
+	bool connectAndWait(const QString& address);
 
-	/// <summary>
-	/// 蓝牙连接状态
-	/// </summary>
 	void ConnectionStatus();
-
-	/// <summary>
-	/// 蓝牙发送数据
-	/// </summary>
-	/// <param name="data"></param>
 	void sendData(const unsigned char* buffer, size_t length);
-
-	/// <summary>发送风扇模式（统一 buffer 构造逻辑）</summary>
 	void sendFanMode(FanMode mode);
 
-	/// <summary>
-	/// 加载BLE Dll库
-	/// </summary>
-	/// <returns></returns>
 	bool loadBleLibrary();
-
-	/// <summary>
-	/// 卸载BLE　Dll库
-	/// </summary>
 	void safeUnloadLibrary();
 };

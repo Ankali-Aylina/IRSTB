@@ -212,7 +212,7 @@ TCV3::TCV3(QWidget* parent)
 	trayIconMenu->addAction(quitAction);
 	trayIcon->setContextMenu(trayIconMenu);
 
-	ui.aboutVersionLabel->setText(QString("V") + QString("3.4.0.0"));
+	ui.aboutVersionLabel->setText(QString("V") + QCoreApplication::applicationVersion());
 
 	// --- 页面切换动画初始化 ---
 	m_pageOpacityEffect = new QGraphicsOpacityEffect(this);
@@ -505,14 +505,19 @@ void TCV3::resetSettings()
 
 void TCV3::initConfigFile()
 {
+	if (!m_config->isFirstRun())
+		return;
+
+	// 首次运行：写入所有默认值
 	if (!m_config->isInitialized("UI"))
 	{
 		m_config->initSection("UI", "false");
-
 		m_config->write("UI", "dataTxDelay", "5");
-
 		m_config->initSection("UI", "true");
 	}
+
+	// 标记首次运行完成
+	m_config->markFirstRunDone();
 }
 
 void TCV3::autoStart()
@@ -520,12 +525,10 @@ void TCV3::autoStart()
 	if (!isAutoStartEnabled())
 	{
 		setAutoStart(true);
-		m_config->write("UI", "AutoStart", "true");
 	}
 	else
 	{
 		setAutoStart(false);
-		m_config->write("UI", "AutoStart", "false");
 	}
 	autoStartUiUpdata();
 }
@@ -544,13 +547,6 @@ void TCV3::autoStartUiUpdata()
 		icon.addFile(QString::fromUtf8(":/TCV3/res/icon/switch-off.png"));
 		ui.autoStartButton->setIcon(icon);
 	}
-
-	//if (IniManagement::instance().read("UI", "AutoStart") == QString("true"))
-	//{
-	//	QIcon icon;
-	//	icon.addFile(QString::fromUtf8(":/TCV3/res/icon/switch-on.png"));
-	//	ui.autoStartButton->setIcon(icon);
-	//}
 }
 
 void TCV3::setAutoStart(bool enable)

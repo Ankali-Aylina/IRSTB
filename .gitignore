@@ -400,3 +400,6 @@ packages/
 # --- 全局日志（精确匹配项目日志，不误伤子目录）---
 /app.log
 /app_*.log
+
+# --- Qt Designer 自动备份文件 ---
+*.ui.*

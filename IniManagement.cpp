@@ -8,12 +8,6 @@ IniManagement::IniManagement(QObject* parent)
 	connect(this, &IniManagement::logMessage, &LogManagement::instance(), &LogManagement::logMessage);
 }
 
-IniManagement& IniManagement::instance()
-{
-	static IniManagement instance;
-	return instance;
-}
-
 IniManagement::~IniManagement()
 {
 }
@@ -70,6 +64,24 @@ void IniManagement::deleteFile()
 	if (file.exists()) {
 		file.remove();
 	}
+}
+
+bool IniManagement::isFirstRun() const
+{
+	// 优先检查统一标记
+	if (isInitialized("App"))
+		return false;
+
+	// 向后兼容：如果旧版各个段都已初始化，视为非首次运行
+	if (isInitialized("TC") || isInitialized("UI"))
+		return false;
+
+	return true;
+}
+
+void IniManagement::markFirstRunDone()
+{
+	initSection("App", "true");
 }
 
 void IniManagement::setPath(const QString& path)

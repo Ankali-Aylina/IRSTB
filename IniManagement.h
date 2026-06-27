@@ -16,7 +16,6 @@ class IniManagement : public QObject, public IConfigProvider
 	Q_OBJECT
 
 public:
-	static IniManagement& instance();
 	explicit IniManagement(QObject* parent = nullptr);
 	~IniManagement();
 
@@ -46,6 +45,14 @@ public slots:
 
 	/// <summary>删除配置文件</summary>
 	void deleteFile() override;
+
+	/// <summary>
+	/// 是否首次运行（兼容旧版 InitStatus 标记）
+	/// </summary>
+	bool isFirstRun() const override;
+
+	/// <summary>标记首次运行已完成</summary>
+	void markFirstRunDone() override;
 
 	/// <summary>
 	/// 设置ini文件路径

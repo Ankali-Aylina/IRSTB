@@ -412,16 +412,32 @@ int TCCore::getGpuTempMgmt()
 
 void TCCore::initConfigFile()
 {
+	if (!m_config->isFirstRun())
+		return;
+
 	if (!m_config->isInitialized("TC"))
 	{
 		m_config->initSection("TC", "false");
 		m_config->write("TC", "DataTransmissionDelay", "5000");
 		m_config->initSection("TC", "true");
 	}
-	return;
 }
 
 int TCCore::getDataTrDelay()
 {
-	return m_config->read("TC", "DataTransmissionDelay").toInt();
+	static constexpr int kMinTxDelay = 1000;  // 最小 1 秒
+	static constexpr int kMaxTxDelay = 10000; // 最大 10 秒
+	static constexpr int kDefaultTxDelay = 5000;
+
+	int delay = m_config->read("TC", "DataTransmissionDelay").toInt();
+	if (delay < kMinTxDelay || delay > kMaxTxDelay)
+	{
+		emit logMessage(
+			QString("DataTransmissionDelay 值 %1 超出范围 [%2, %3]，重置为默认值 %4")
+				.arg(delay).arg(kMinTxDelay).arg(kMaxTxDelay).arg(kDefaultTxDelay),
+			LogManagement::LOG_WARNING);
+		m_config->write("TC", "DataTransmissionDelay", QString::number(kDefaultTxDelay));
+		delay = kDefaultTxDelay;
+	}
+	return delay;
 }

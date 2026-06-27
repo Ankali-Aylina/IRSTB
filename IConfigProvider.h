@@ -29,4 +29,17 @@ public:
 
     /// <summary>删除配置文件</summary>
     virtual void deleteFile() = 0;
+
+    /// <summary>是否首次运行（优先检查 [App]/FirstRun，兼容旧版 InitStatus）</summary>
+    virtual bool isFirstRun() const
+    {
+        return !isInitialized("App") && !isInitialized("TC") && !isInitialized("UI");
+    }
+
+    /// <summary>标记首次运行已完成</summary>
+    virtual void markFirstRunDone()
+    {
+        // 默认实现：通过 initSection 写入 [App]/FirstRun
+        const_cast<IConfigProvider*>(this)->write("App", "FirstRun", "true");
+    }
 };

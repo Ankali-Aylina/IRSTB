@@ -48,5 +48,6 @@
         <file>res/lib/inteltemp.dll</file>
         <file>res/lib/PawnIO_setup.exe</file>
         <file>res/lib/BLEDll.dll</file>
+        <file>res/lib/WinRT_BLE_DLL.dll</file>
     </qresource>
 </RCC>

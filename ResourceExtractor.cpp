@@ -4,6 +4,8 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QThread>
+#include <QDebug>
 #include <windows.h>
 
 // 将 QRC 路径映射到磁盘文件名
@@ -19,6 +21,7 @@ static const ResourceEntry kEntries[] = {
     {":/TCV3/res/lib/nv_dll.dll",           "nv_dll.dll"},
     {":/TCV3/res/lib/inteltemp.dll",        "inteltemp.dll"},
     {":/TCV3/res/lib/BLEDll.dll",           "BLEDll.dll"},
+    {":/TCV3/res/lib/WinRT_BLE_DLL.dll",   "WinRT_BLE_DLL.dll"},
     // 数据 / 工具文件（通过绝对路径访问）
     {":/TCV3/res/lib/IntelMSR.bin",         "IntelMSR.bin"},
     {":/TCV3/res/lib/PawnIO_setup.exe",     "PawnIO_setup.exe"},
@@ -49,9 +52,21 @@ QString ResourceExtractor::extract()
     if (markerFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QString cachedVersion = QString::fromUtf8(markerFile.readAll()).trimmed();
         if (cachedVersion == currentVersion) {
-            // 版本匹配，无需重新提取——只需确保 DLL 搜索路径已设置
-            SetDllDirectoryW(reinterpret_cast<LPCWSTR>(s_extractDir.utf16()));
-            return s_extractDir;
+            // 版本匹配，还需验证所有预期文件是否存在（防止新增文件未提取）
+            bool allExist = true;
+            for (const auto& entry : kEntries) {
+                QFileInfo destInfo(s_extractDir + "/" + entry.diskName);
+                if (!destInfo.exists()) {
+                    qDebug() << "ResourceExtractor: missing file" << entry.diskName << ", re-extracting...";
+                    allExist = false;
+                    break;
+                }
+            }
+            if (allExist) {
+                SetDllDirectoryW(reinterpret_cast<LPCWSTR>(s_extractDir.utf16()));
+                return s_extractDir;
+            }
+            // 有文件缺失，继续执行提取（不清空目录，走增量提取分支）
         }
         markerFile.close();
     }
@@ -71,7 +86,8 @@ QString ResourceExtractor::extract()
         // 跳过已存在且大小一致的文件（增量提取）
         QFileInfo destInfo(destPath);
         QFileInfo qrcInfo(entry.qrcPath);
-        if (destInfo.exists() && destInfo.size() == qrcInfo.size()) {
+        // QRC 文件大小可能在某些环境下返回 0，此时强制重新提取
+        if (destInfo.exists() && qrcInfo.size() > 0 && destInfo.size() == qrcInfo.size()) {
             continue;
         }
 
@@ -79,8 +95,22 @@ QString ResourceExtractor::extract()
         QFileInfo fi(destPath);
         QDir().mkpath(fi.absolutePath());
 
-        // 从 QRC 复制到磁盘
-        if (!QFile::copy(entry.qrcPath, destPath)) {
+        // 从 QRC 复制到磁盘（含重试，避免旧进程 DLL 卸载未完成导致的文件锁冲突）
+        bool copied = false;
+        for (int retry = 0; retry < 5; ++retry) {
+            // 先尝试删除旧文件（可能在版本更新时被旧进程锁定）
+            if (destInfo.exists()) {
+                QFile::remove(destPath);
+            }
+            if (QFile::copy(entry.qrcPath, destPath)) {
+                copied = true;
+                break;
+            }
+            qDebug() << "ResourceExtractor: retry" << retry << "for" << entry.diskName;
+            QThread::msleep(100);
+        }
+        if (!copied) {
+            qWarning() << "ResourceExtractor: failed to extract" << entry.qrcPath;
             return {};
         }
 

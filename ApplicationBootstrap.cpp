@@ -1,6 +1,7 @@
 #include "ApplicationBootstrap.h"
 #include "PawnIoDriverManager.h"
 #include "ResourceExtractor.h"
+#include "resource.h"
 #include "TCV3.h"
 
 #include <QApplication>
@@ -58,7 +59,7 @@ int ApplicationBootstrap::run(int argc, char *argv[]) {
   QApplication app(argc, argv);
 
   // 设置应用版本（供 ResourceExtractor 版本缓存使用）
-  app.setApplicationVersion("3.4.0.1");
+  app.setApplicationVersion(APP_VERSION_STR);
 
   if (!ensureAdminPrivilege(argc, argv))
     return -1;

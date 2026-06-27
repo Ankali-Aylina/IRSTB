@@ -4,7 +4,7 @@
 ;   2. 用 Inno Setup 打开此文件，点击"编译"即可生成安装包
 
 #define MyAppName     "TemperatureControlV3"
-#define MyAppVersion  "3.4.0.0"
+#define MyAppVersion  "3.4.0.1"
 #define MyAppExeName  "TemperatureControlV3.exe"
 #define MyAppPublisher "Ankali-Aylina"
 #define MyAppURL      ""
@@ -53,7 +53,7 @@ Source: "{#MyAppSource}\imageformats\*"; DestDir: "{app}\imageformats"; Flags: i
 Source: "{#MyAppSource}\iconengines\*"; DestDir: "{app}\iconengines"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#MyAppSource}\networkinformation\*"; DestDir: "{app}\networkinformation"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#MyAppSource}\tls\*"; DestDir: "{app}\tls"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#MyAppSource}\translations\*"; DestDir: "{app}\translations"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Source: "{#MyAppSource}\translations\*"; DestDir: "{app}\translations"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; PawnIO 驱动安装程序
 Source: "res\lib\PawnIO_setup.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -82,7 +82,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "启动 {#MyAppName}"; Flags: po
 [UninstallDelete]
 Type: files; Name: "{app}\app.log"
 Type: files; Name: "{app}\app_*.log"
-; config.ini 由 CurUninstallStepChanged 处理（升级时保留）
+Type: files; Name: "{app}\config.ini"
 
 [Code]
 var
@@ -176,17 +176,14 @@ end;
 
 // 卸载时清理（仅完整卸载，升级时不执行）
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
-var
-  AppDir: String;
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    // 仅在完整卸载时清理（升级时 IsUpgradeUninstall 返回 True 则跳过）
+    // 仅在完整卸载时清理（升级卸载跳过）
     if ExpandConstant('{param:SECONDPHASE|0}') = 'Yes' then
-      Exit; // 升级卸载，保留设置
+      Exit;
 
-    AppDir := ExpandConstant('{app}');
-    DeleteFile(AppDir + '\config.ini');
+    // 注册表开机自启清理
     RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'TemperatureControlV3');
   end;
 end;

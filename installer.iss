@@ -71,8 +71,8 @@ Name: "{group}\卸载 {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
-; 卸载时清理开机自启注册表项
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "TemperatureControlV3"; Flags: uninsdeletevalue
+; 开机自启注册表项（由 Pascal 代码管理，升级时保留）
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "TemperatureControlV3"
 
 [Run]
 ; PawnIO 驱动安装（仅在未安装时执行）
@@ -82,9 +82,12 @@ Filename: "{app}\{#MyAppExeName}"; Description: "启动 {#MyAppName}"; Flags: po
 [UninstallDelete]
 Type: files; Name: "{app}\app.log"
 Type: files; Name: "{app}\app_*.log"
-Type: files; Name: "{app}\config.ini"
+; config.ini 由 CurUninstallStepChanged 处理（升级时保留）
 
 [Code]
+var
+  SavedAutoStart: String;  // 升级时暂存旧版开机自启设置
+
 function IsAppRunning: Boolean;
 begin
   Result := FindWindowByWindowName('TCV3') <> 0;
@@ -127,9 +130,16 @@ end;
 function InitializeSetup: Boolean;
 var
   ErrorCode: Integer;
+  OldIniPath: String;
 begin
   // 安装/升级前关闭运行中的旧版本
   KillRunningApp;
+
+  // 升级前保存旧版开机自启设置
+  SavedAutoStart := '';
+  OldIniPath := ExpandConstant('{app}\config.ini');
+  if FileExists(OldIniPath) then
+    SavedAutoStart := GetIniString('UI', 'AutoStart', '', OldIniPath);
 
   if not IsVCppRedistInstalled then
   begin
@@ -142,6 +152,33 @@ begin
     end;
   end;
   Result := True;
+end;
+
+// 安装完成后恢复开机自启设置
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+  begin
+    if SavedAutoStart <> '' then
+      SetIniString('UI', 'AutoStart', SavedAutoStart, ExpandConstant('{app}\config.ini'));
+  end;
+end;
+
+// 卸载时清理（仅完整卸载，升级时不执行）
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  AppDir: String;
+begin
+  if CurUninstallStep = usPostUninstall then
+  begin
+    // 仅在完整卸载时清理（升级时 IsUpgradeUninstall 返回 True 则跳过）
+    if ExpandConstant('{param:SECONDPHASE|0}') = 'Yes' then
+      Exit; // 升级卸载，保留设置
+
+    AppDir := ExpandConstant('{app}');
+    DeleteFile(AppDir + '\config.ini');
+    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'TemperatureControlV3');
+  end;
 end;
 
 function InitializeUninstall: Boolean;

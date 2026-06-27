@@ -20,7 +20,6 @@ static const ResourceEntry kEntries[] = {
     {":/TCV3/res/lib/Cpu_Dll.dll",          "Cpu_Dll.dll"},
     {":/TCV3/res/lib/nv_dll.dll",           "nv_dll.dll"},
     {":/TCV3/res/lib/inteltemp.dll",        "inteltemp.dll"},
-    {":/TCV3/res/lib/BLEDll.dll",           "BLEDll.dll"},
     {":/TCV3/res/lib/WinRT_BLE_DLL.dll",   "WinRT_BLE_DLL.dll"},
     // 数据 / 工具文件（通过绝对路径访问）
     {":/TCV3/res/lib/IntelMSR.bin",         "IntelMSR.bin"},

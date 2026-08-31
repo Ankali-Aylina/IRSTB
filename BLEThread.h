@@ -1,4 +1,4 @@
-﻿// BLEThread.h
+// BLEThread.h
 #pragma once
 
 #include <QObject>
@@ -107,6 +107,9 @@ private:
 
 	/// <summary>扫描上下文</summary>
 	struct ScanContext {
+		// DLL 回调线程与 BLE 工作线程会并发读写以下 QString（隐式共享非线程安全），
+		// 必须用互斥锁保护；isFound 保持原子，配合 release/acquire 建立 happens-before
+		QMutex mutex;
 		QString targetName;
 		QString foundAddress;
 		std::atomic<bool> isFound{ false };
@@ -118,13 +121,13 @@ private:
 		quint16 serviceUuid = 0xFFE0;       // 服务UUID（16位）
 		quint16 characteristicUuid = 0xFFE1; // 特征UUID（16位）
 		int retryCount = 0;
-		bool isFind = false;
-		bool isConnected = false;
+		// DLL 回调线程与工作线程会并发读写，必须使用原子类型
+		std::atomic<bool> isFind{ false };
+		std::atomic<bool> isConnected{ false };
 	};
 
 	// 回调（静态方法，通过 userData 路由到实例）
 	static void onDeviceScanned(const wchar_t* address, const wchar_t* name, int16_t rssi, void* userData);
-	static void onConnectionChanged(const wchar_t* address, int connected, const wchar_t* error, void* userData);
 
 	// 内部连接等待回调
 	static void onFirstConnResult(const wchar_t* address, int connected, const wchar_t* error, void* userData);
@@ -145,6 +148,8 @@ private:
 	std::atomic<bool> m_bleInitialized{ false };
 	std::atomic<bool> m_connecting{ false };
 	std::atomic<bool> m_connResult{ false }; // 连接回调结果
+	std::atomic<bool> m_connCallbackFired{ false }; // 连接回调是否已到达（区分超时与回调失败）
+	std::atomic<bool> m_stopping{ false };   // 停止标志：嵌套事件循环须响应它以便快速退出
 
 	/// <summary>将 16 位 UUID 整数转为宽字符串（如 0xFFE0 → "FFE0"）</summary>
 	static QString uuidToString(quint16 uuid);
@@ -155,18 +160,12 @@ private:
 	void initializeIniFile();
 	void loadDeviceConfig();
 
-	void scanDevices();
-	void scanDevicesRetry();
-	void scanVerifyDevice();
-	void scanVerifyDeviceRetry();
 	void scanDevicesInternal(bool matchByName, bool setId, bool emitStarted);
 
 	void initializeBle();
 
 	void performFirstConnection();
-	void performFirstConnectionRetry();
 	void connectToDevice(const QString& address);
-	void connectToDeviceRetry(const QString& address);
 
 	/// <summary>异步连接并等待回调结果</summary>
 	bool connectAndWait(const QString& address);

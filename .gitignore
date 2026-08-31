@@ -401,5 +401,10 @@ packages/
 /app.log
 /app_*.log
 
+# --- 开发工具生成物（不提交）---
+.code-rag/
+.dsh/
+.dsh-drop/
+
 # --- Qt Designer 自动备份文件 ---
 *.ui.*

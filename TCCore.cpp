@@ -1,5 +1,6 @@
-﻿#include "TCCore.h"
+#include "TCCore.h"
 #include "ResourceExtractor.h"
+#include <QElapsedTimer>
 
 TCCore::TCCore(IConfigProvider* config, QObject* parent)
 	: QObject(parent)
@@ -58,6 +59,9 @@ void TCCore::start()
 {
 	if (m_workThread) return; // 防止重复启动
 
+	// 支持 stop() 后重新 start()：复位停止标志（否则新线程的 run() 会立即退出）
+	m_stopped.store(false, std::memory_order_release);
+
 	m_workThread = new QThread(this);
 	moveToThread(m_workThread);
 
@@ -68,13 +72,18 @@ void TCCore::start()
 
 void TCCore::stop(int timeoutMs)
 {
-	m_stopped = true;
+	m_stopped.store(true, std::memory_order_release);
 	if (!m_workThread) return;
 
 	if (m_workThread->isRunning())
 	{
 		m_workThread->quit();
-		m_workThread->wait(timeoutMs);
+		if (!m_workThread->wait(timeoutMs))
+		{
+			// 兜底：tick 循环每 100ms 检查停止标志，稍候必然退出；
+			// 必须等到线程真正结束，否则 QThread 在仍运行时被销毁会崩溃
+			m_workThread->wait();
+		}
 	}
 
 	// 移回当前线程，确保安全析构
@@ -84,29 +93,44 @@ void TCCore::stop(int timeoutMs)
 
 void TCCore::run()
 {
+	if (m_stopped.load(std::memory_order_acquire))
+		return;
+
 	int TxDelay = getDataTrDelay();
 
+	// 100ms 周期 tick：既能按 TxDelay 节流执行，也能在 stop() 后 100ms 内退出。
+	// 旧实现用"单次定时器 + 嵌套事件循环"等待，stop() 无法中断等待（最长 10 秒），
+	// wait(3000) 超时后线程仍在运行就被销毁，导致退出时崩溃/卡死
 	QEventLoop loop;
-	QTimer timer;
-	timer.setSingleShot(true);
-	timer.setInterval(TxDelay);
+	QTimer tick;
+	tick.setInterval(100);
+	tick.setSingleShot(false);
 
-	connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+	QElapsedTimer elapsed;
+	elapsed.start();
 
-	while (!m_stopped) {
-		timer.start();
-
-		getControlData();
-		emit updateConnectionStatus();
-		loop.exec();
-
-		if (m_setDelayFlag) {
-			timer.stop();
-			TxDelay = getDataTrDelay();
-			timer.setInterval(TxDelay);
-			m_setDelayFlag = false;
+	connect(&tick, &QTimer::timeout, [&]() {
+		if (m_stopped.load(std::memory_order_acquire))
+		{
+			loop.quit();
+			return;
 		}
-	}
+
+		if (elapsed.elapsed() >= TxDelay)
+		{
+			getControlData();
+			emit updateConnectionStatus();
+			elapsed.restart();
+
+			if (m_setDelayFlag) {
+				m_setDelayFlag = false;
+				TxDelay = getDataTrDelay();
+			}
+		}
+	});
+
+	tick.start();
+	loop.exec();
 }
 
 int TCCore::getCPUTemp()

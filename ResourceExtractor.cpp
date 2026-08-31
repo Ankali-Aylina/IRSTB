@@ -4,9 +4,13 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QStandardPaths>
 #include <QThread>
 #include <QDebug>
 #include <windows.h>
+#include <wintrust.h>
+#include <softpub.h>
+#pragma comment(lib, "wintrust.lib")
 
 // 将 QRC 路径映射到磁盘文件名
 struct ResourceEntry {
@@ -35,12 +39,17 @@ static const ResourceEntry kEntries[] = {
 
 static QString s_extractDir;
 
+// 前置声明：实现位于文件末尾（extract() 中调用）
+static bool verifyExtractedFiles();
+
 QString ResourceExtractor::extract()
 {
-    // 使用 app 名称 + 版本构建唯一的临时目录
+    // 使用 app 名称 + 版本构建唯一的资源目录。
+    // 注意：必须用 %LOCALAPPDATA%/<AppName> 而非 %TEMP%——%TEMP% 是共享目录，
+    // 低权限进程可预占位同名 DLL/exe，配合 SetDllDirectoryW 可形成 DLL 劫持/本地提权
     QString appName = QCoreApplication::applicationName();
     QString subDir = appName + "_Resources";
-    QString tempRoot = QDir::tempPath();
+    QString tempRoot = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
     s_extractDir = tempRoot + "/" + subDir;
 
     // 版本标记文件——内容为当前应用版本，版本变化时重新提取
@@ -62,6 +71,10 @@ QString ResourceExtractor::extract()
                 }
             }
             if (allExist) {
+                // 快速路径：文件齐全，但仍需校验签名——防止目录被预占位/替换
+                if (!verifyExtractedFiles()) {
+                    return {};
+                }
                 SetDllDirectoryW(reinterpret_cast<LPCWSTR>(s_extractDir.utf16()));
                 return s_extractDir;
             }
@@ -118,6 +131,11 @@ QString ResourceExtractor::extract()
                           FILE_ATTRIBUTE_NORMAL);
     }
 
+    // 对提取出的可执行文件做 Authenticode 校验（防止提取目录被恶意替换）
+    if (!verifyExtractedFiles()) {
+        return {};
+    }
+
     // 写入版本标记
     if (markerFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
         markerFile.write(currentVersion.toUtf8());
@@ -134,4 +152,73 @@ QString ResourceExtractor::filePath(const QString& relativePath)
 {
     if (s_extractDir.isEmpty()) return {};
     return s_extractDir + "/" + relativePath;
+}
+
+// ============================================================================
+// Authenticode 签名校验（防 DLL 劫持 / 提权执行被替换的安装包）
+// ============================================================================
+
+enum class SignatureStatus { Valid, NotSigned, Invalid };
+
+/// <summary>校验文件的 Authenticode 签名（离线、不弹 UI）</summary>
+static SignatureStatus verifyAuthenticode(const QString& filePath)
+{
+    WINTRUST_FILE_INFO fileInfo{};
+    fileInfo.cbStruct = sizeof(fileInfo);
+    fileInfo.pcwszFilePath = reinterpret_cast<LPCWSTR>(filePath.utf16());
+
+    WINTRUST_DATA wintrustData{};
+    wintrustData.cbStruct = sizeof(wintrustData);
+    wintrustData.dwUIChoice = WTD_UI_NONE;
+    wintrustData.fdwRevocationChecks = WTD_REVOKE_NONE;
+    wintrustData.dwUnionChoice = WTD_CHOICE_FILE;
+    wintrustData.pFile = &fileInfo;
+    wintrustData.dwStateAction = WTD_STATEACTION_VERIFY;
+    // 离线校验：不访问网络（避免启动卡顿），也不做吊销检查
+    wintrustData.dwProvFlags = WTD_CACHE_ONLY_URL_RETRIEVAL | WTD_REVOCATION_CHECK_NONE;
+
+    GUID action = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+    LONG result = WinVerifyTrust(nullptr, &action, &wintrustData);
+
+    // 无论结果如何都要关闭状态，释放内部句柄
+    wintrustData.dwStateAction = WTD_STATEACTION_CLOSE;
+    WinVerifyTrust(nullptr, &action, &wintrustData);
+
+    if (result == ERROR_SUCCESS)
+        return SignatureStatus::Valid;
+    if (result == TRUST_E_NOSIGNATURE || result == TRUST_E_SUBJECT_FORM_UNKNOWN
+        || result == TRUST_E_PROVIDER_UNKNOWN)
+        return SignatureStatus::NotSigned;
+    return SignatureStatus::Invalid;
+}
+
+/// <summary>校验所有提取出的 .dll/.exe/.sys；签名无效的文件会被删除并返回 false</summary>
+static bool verifyExtractedFiles()
+{
+    bool allValid = true;
+    for (const auto& entry : kEntries)
+    {
+        const QString lower = QString::fromLatin1(entry.diskName).toLower();
+        if (!(lower.endsWith(".dll") || lower.endsWith(".exe") || lower.endsWith(".sys")))
+            continue;
+
+        const QString destPath = s_extractDir + "/" + entry.diskName;
+        switch (verifyAuthenticode(destPath))
+        {
+        case SignatureStatus::Valid:
+            break;
+        case SignatureStatus::NotSigned:
+            // 自编译 DLL 可能未签名：仅警告、不阻断（保持向后兼容）
+            qWarning() << "ResourceExtractor: file not signed (verification skipped):"
+                       << entry.diskName;
+            break;
+        case SignatureStatus::Invalid:
+            qWarning() << "ResourceExtractor: signature INVALID, removing file:"
+                       << entry.diskName;
+            QFile::remove(destPath);
+            allValid = false;
+            break;
+        }
+    }
+    return allValid;
 }

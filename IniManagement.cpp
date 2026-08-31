@@ -1,6 +1,7 @@
-﻿#include "IniManagement.h"
+#include "IniManagement.h"
 
 IniManagement::IniManagement(QObject* parent)
+	: QObject(parent)
 {
 	m_path = QCoreApplication::applicationDirPath() + "/config.ini";
 	m_settings.reset(new QSettings(m_path, QSettings::IniFormat));
@@ -60,6 +61,12 @@ bool IniManagement::fileExists() const
 
 void IniManagement::deleteFile()
 {
+	// QSettings 是惰性写入：所有 setValue 都缓存在内存，析构/sync() 时才落盘。
+	// 必须先清空内存缓存并落盘，再删除文件——否则 QSettings 析构时会
+	// 把旧值重新写回磁盘，导致"重置配置"功能失效。
+	m_settings->clear();
+	m_settings->sync();
+
 	QFile file(m_path);
 	if (file.exists()) {
 		file.remove();

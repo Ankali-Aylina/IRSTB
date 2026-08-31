@@ -7,7 +7,7 @@
 - **工具链**：v145（VS 2022），C++20（`stdcpp20`），Unicode，Windows 子系统
 - **Qt**：6.11.1 msvc2022_64，模块：`core;gui;widgets;concurrent`（通过 Qt VS Tools 集成）
 - **Windows SDK**：10.0.28000.0
-- **运行**：Release 构建下只需 `config.ini`（首次运行自动生成）和 Qt 运行时 DLL（`platforms/`、`styles/` 等）；原生 DLL 和 `bin/` 已嵌入 exe，启动时自动提取到 `%TEMP%`
+- **运行**：Release 构建下只需 `config.ini`（首次运行自动生成）和 Qt 运行时 DLL（`platforms/`、`styles/` 等）；原生 DLL 和 `bin/` 已嵌入 exe，启动时自动提取到 `%LOCALAPPDATA%/TemperatureControlV3/TemperatureControlV3_Resources/`
 
 ## 架构
 
@@ -17,10 +17,11 @@
 main.cpp → ApplicationBootstrap::run()
   ├── UAC 提权（runas）
   ├── 单实例锁（QLockFile）
-  ├── ResourceExtractor::extract()（从 QRC 提取 DLL 等到 %TEMP%）
+  ├── ResourceExtractor::extract()（从 QRC 提取 DLL 等到 %LOCALAPPDATA%，并做 Authenticode 校验）
   ├── PawnIO 驱动版本检查
-  └── TCV3 主窗口（QMainWindow）
-        └── AppModuleManager（拥有 IAppModule 实例）
+  └── QQmlApplicationEngine 加载 qml/main.qml
+        └── QmlBridge（C++↔QML 桥：模块生命周期/托盘/UI 意图转发）
+              └── AppModuleManager（拥有 IAppModule 实例）
               ├── TCCore（温度采集 + 风扇控制逻辑）
               └── BLEThread（蓝牙 LE 通信）
 ```
@@ -62,7 +63,7 @@ m_moduleManager->stopAll();  // 逆序停止（BLE 在 TCCore 之前）
 
 ### DLL 加载与资源提取
 
-所有原生 DLL 通过 `NativeLibraryLoader`（`NativeLibraryLoader.h`）从**文件系统**加载（`QLibrary::load("xxx.dll")`）。但 DLL 文件不再需要单独分发——它们已嵌入 `TCV3.qrc`，启动时由 `ResourceExtractor` 自动提取到 `%TEMP%/TemperatureControlV3_Resources/`：
+所有原生 DLL 通过 `NativeLibraryLoader`（`NativeLibraryLoader.h`）从**文件系统**加载（`QLibrary::load("xxx.dll")`）。但 DLL 文件不再需要单独分发——它们已嵌入 `TCV3.qrc`，启动时由 `ResourceExtractor` 自动提取到 `%LOCALAPPDATA%/TemperatureControlV3/TemperatureControlV3_Resources/`（每用户目录 + Authenticode 校验，防 DLL 劫持）：
 
 | DLL 文件            | 加载位置  | 用途                            |
 | ------------------- | --------- | ------------------------------- |
@@ -72,7 +73,7 @@ m_moduleManager->stopAll();  // 逆序停止（BLE 在 TCCore 之前）
 | `nv_dll.dll`        | TCCore    | NVIDIA GPU 温度                 |
 | `WinRT_BLE_DLL.dll` | BLEThread | 蓝牙 LE 通信（WinRT/C++/WinRT） |
 
-> **工作原理**：`ApplicationBootstrap::run()` 调用 `ResourceExtractor::extract()` → 从 QRC 复制文件到 `%TEMP%` → 调用 `SetDllDirectoryW` 将临时目录加入 DLL 搜索路径 → `NativeLibraryLoader` 从搜索路径中找到 DLL。版本标记文件确保只在版本变化时重新提取。
+> **工作原理**：`ApplicationBootstrap::run()` 调用 `ResourceExtractor::extract()` → 从 QRC 复制文件到 `%LOCALAPPDATA%/TemperatureControlV3/` → 对 .dll/.exe/.sys 做 Authenticode 校验（签名无效的文件删除并中止启动）→ 调用 `SetDllDirectoryW` 将该目录加入 DLL 搜索路径 → `NativeLibraryLoader` 从搜索路径中找到 DLL。版本标记文件确保只在版本变化时重新提取。
 
 加载时使用初始化列表批量解析符号，**切勿**直接使用原始 `QLibrary`。
 
@@ -82,13 +83,13 @@ m_moduleManager->stopAll();  // 逆序停止（BLE 在 TCCore 之前）
 
 ### 信号/槽中枢架构
 
-**TCV3 是唯一的信号/槽中枢（Hub）**。模块之间绝不直接连接——所有跨模块连接均在 `TCV3::TCV3()` 构造函数中完成：
+**QmlBridge 是唯一的信号/槽中枢（Hub）**（QML 版；原 Widgets 版 TCV3 已移除）。模块之间绝不直接连接——所有跨模块连接均在 `QmlBridge::setupModules()` 中完成：
 
 ```
 TCCore::controlDataUpdated  ──→  BLEThread::controlFan       (QueuedConnection)
 TCCore::updateConnectionStatus ──→ BLEThread::updateConnectionStatus
-TCV3::setFan*Mode             ──→  BLEThread::*Mode
-BLEThread::ble*               ──→  BluetoothStatusPresenter::on*
+QmlBridge::setFanMode（QML 调用）──→ BLEThread::*Mode
+BLEThread::ble*               ──→  QmlBridge::setBleUiState（QML 属性 bleState/bleStatusText）
 ```
 
 **动态连接管理**：`m_fanControlConnection` 在自动/手动模式间切换：
@@ -115,7 +116,7 @@ BLEThread::ble*               ──→  BluetoothStatusPresenter::on*
 | `"App"` | 全局      | `FirstRun`（首次运行标记，替代旧版各段 `InitStatus`）                                                                  |
 | `"TC"`  | TCCore    | `DataTransmissionDelay`, `InitCpuTemp`, `InitGpuTemp`, `CpuStep`, `GpuStep`, `WarningCpu`, `WarningGpu`, `HistorySize` |
 | `"BLE"` | BLEThread | `Init`, `TargetName`, `TargetServiceUUID`, `TargetCharacteristicUUID`, `TargetID`                                      |
-| `"UI"`  | TCV3      | `dataTxDelay`                                                                                                          |
+| `"UI"`  | TCV3      | （已废弃 `dataTxDelay`，延时统一存 `TC/DataTransmissionDelay`，旧键自动迁移）                                  |
 
 > ⚠️ 开机自启（AutoStart）**不在 config.ini 中**——直接读写注册表 `HKCU\...\Run`。`isAutoStartEnabled()` / `setAutoStart()` 操作注册表，不要写 config。
 
@@ -135,7 +136,8 @@ Release 构建下，原生 DLL 和 `bin/` 已全部嵌入 exe 的 QRC 中。发�
 | 文件/目录                                                                     | 说明                                                 |
 | ----------------------------------------------------------------------------- | ---------------------------------------------------- |
 | `TemperatureControlV3.exe`                                                    | 主程序（已内嵌所有原生 DLL、`bin/`、图标、更新日志） |
-| `Qt6Core.dll`, `Qt6Gui.dll`, `Qt6Widgets.dll`, `Qt6Network.dll`, `Qt6Svg.dll` | Qt 运行时                                            |
+| `Qt6Core.dll`, `Qt6Gui.dll`, `Qt6Qml.dll`, `Qt6Quick.dll`, `Qt6QuickControls2.dll`, `Qt6Widgets.dll`, `Qt6Network.dll`, `Qt6Svg.dll` | Qt 运行时
+| `qml/` | QML 运行时插件（`windeployqt --qmldir` 自动复制，**必须**，否则 QML 界面无法加载） |                                            |
 | `platforms/qwindows.dll`                                                      | Qt 平台插件（**必须**，否则无法创建窗口）            |
 | `styles/`                                                                     | Qt 样式插件                                          |
 | `imageformats/`, `iconengines/`                                               | 图片格式和 SVG 支持                                  |

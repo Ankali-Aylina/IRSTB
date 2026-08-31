@@ -4,11 +4,11 @@
 ;   2. 用 Inno Setup 打开此文件，点击"编译"即可生成安装包
 
 #define MyAppName     "TemperatureControlV3"
-#define MyAppVersion  "3.4.1.0"
+#define MyAppVersion  "4.0.0.0"
 #define MyAppExeName  "TemperatureControlV3.exe"
 #define MyAppPublisher "Ankali-Aylina"
-#define MyAppURL      ""
 #define MyAppSource   "x64\Release"
+; 所有文件均从 Release 目录获取（请先运行 package.ps1 或 windeployqt 生成 qml 插件目录）
 
 [Setup]
 AppId={{D2AC4FC9-8819-4172-AB93-5C2129504C89}
@@ -43,17 +43,21 @@ Source: "{#MyAppSource}\Qt6Gui.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyAppSource}\Qt6Widgets.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyAppSource}\Qt6Network.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyAppSource}\Qt6Svg.dll"; DestDir: "{app}"; Flags: ignoreversion
+; QML 运行时（从 Release 获取，windeployqt 会部署全部 Qml/Quick 相关 DLL）
+Source: "{#MyAppSource}\Qt6Qml*.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyAppSource}\Qt6Quick*.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyAppSource}\Qt6OpenGL.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyAppSource}\D3Dcompiler_47.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyAppSource}\opengl32sw.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyAppSource}\qml\*"; DestDir: "{app}\qml"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "qmltooling,QtQuick\Layouts,QtQuick\Shapes,QtQuick\Controls\Fusion,QtQuick\Controls\Imagine,QtQuick\Controls\Material,QtQuick\Controls\Universal,QtQuick\Controls\FluentWinUI3,QtQuick\Controls\Windows"
 
-; Qt 插件目录
+; Qt 插件目录（platforms 必须包含，否则无法创建窗口）
 Source: "{#MyAppSource}\platforms\*"; DestDir: "{app}\platforms"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#MyAppSource}\styles\*"; DestDir: "{app}\styles"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#MyAppSource}\imageformats\*"; DestDir: "{app}\imageformats"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#MyAppSource}\iconengines\*"; DestDir: "{app}\iconengines"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#MyAppSource}\networkinformation\*"; DestDir: "{app}\networkinformation"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#MyAppSource}\tls\*"; DestDir: "{app}\tls"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Source: "{#MyAppSource}\translations\*"; DestDir: "{app}\translations"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; PawnIO 驱动安装程序
 Source: "res\lib\PawnIO_setup.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -100,7 +104,8 @@ end;
 
 function IsAppRunning: Boolean;
 begin
-  Result := FindWindowByWindowName('TCV3') <> 0;
+  // QML 窗口标题（原 Widgets 版标题 TCV3 已废弃）
+  Result := FindWindowByWindowName('智能散热小桌板') <> 0;
 end;
 
 procedure KillRunningApp;
@@ -195,8 +200,8 @@ var
 begin
   Result := True;
 
-  // 先尝试通过窗口标题查找（正常显示状态）
-  AppWnd := FindWindowByWindowName('TCV3');
+  // 先尝试通过窗口标题查找（正常显示状态；QML 窗口标题为"智能散热小桌板"）
+  AppWnd := FindWindowByWindowName('智能散热小桌板');
 
   if AppWnd <> 0 then
   begin
@@ -219,7 +224,7 @@ begin
   Sleep(500);
 
   // 最终检查，确保进程已完全退出
-  if FindWindowByWindowName('TCV3') <> 0 then
+  if FindWindowByWindowName('智能散热小桌板') <> 0 then
   begin
     MsgBox('无法关闭 {#MyAppName}，请手动关闭后重试。', mbError, MB_OK);
     Result := False;

@@ -1,4 +1,4 @@
-﻿#include "BLEThread.h"
+#include "BLEThread.h"
 #include <QDebug>
 #include <QEventLoop>
 
@@ -16,6 +16,9 @@ void BLEThread::onDeviceScanned(const wchar_t* address, const wchar_t* name, int
 
 	auto& ctx = self->m_scanCtx;
 
+	// 回调可能来自 DLL 内部线程，QString 访问必须加锁
+	QMutexLocker lock(&ctx.mutex);
+
 	// 按名称匹配（首次扫描）
 	if (!ctx.targetName.isEmpty() && name && ctx.targetName == QString::fromWCharArray(name))
 	{
@@ -32,35 +35,22 @@ void BLEThread::onDeviceScanned(const wchar_t* address, const wchar_t* name, int
 	}
 }
 
-void BLEThread::onConnectionChanged(const wchar_t* address, int connected, const wchar_t* error, void* userData)
-{
-	auto* self = static_cast<BLEThread*>(userData);
-	if (!self) return;
-
-	qDebug() << "Connection changed:" << QString::fromWCharArray(address ? address : L"")
-	         << (connected ? "Connected" : "Disconnected");
-
-	if (connected)
-	{
-		self->m_deviceInfo.isConnected = true;
-	}
-	else
-	{
-		self->m_deviceInfo.isConnected = false;
-		self->m_deviceInfo.isFind = false;
-		if (error)
-			self->emit logMessage(QString::fromWCharArray(error), LogManagement::LOG_ERROR);
-		self->emit disconnected();
-	}
-}
-
 void BLEThread::onFirstConnResult(const wchar_t* address, int connected, const wchar_t* error, void* userData)
 {
+	// address 未使用（回调签名由 DLL 约定固定，不能省略）
+	Q_UNUSED(address);
+
 	auto* self = static_cast<BLEThread*>(userData);
 	if (!self) return;
 
+	// 回调可能被 DLL 重复触发（连接成功事件可能到达两次），
+	// 成功结果只接受一次，避免重复发出 connected() 信号
+	if (connected == 1 && self->m_connResult.load(std::memory_order_acquire))
+		return;
+
+	self->m_connCallbackFired.store(true, std::memory_order_release);
 	self->m_connResult.store(connected == 1, std::memory_order_release);
-	self->m_deviceInfo.isConnected = (connected == 1);
+	self->m_deviceInfo.isConnected.store(connected == 1, std::memory_order_release);
 
 	if (connected)
 	{
@@ -148,6 +138,9 @@ void BLEThread::start()
 {
 	if (m_workThread) return;
 
+	// 支持 stop() 后重新 start()：复位停止标志
+	m_stopping.store(false, std::memory_order_release);
+
 	m_workThread = new QThread(this);
 	moveToThread(m_workThread);
 
@@ -160,10 +153,18 @@ void BLEThread::stop(int timeoutMs)
 {
 	if (!m_workThread) return;
 
+	// 通知所有嵌套事件循环（扫描/连接等待）立即退出
+	m_stopping.store(true, std::memory_order_release);
+
 	if (m_workThread->isRunning())
 	{
 		m_workThread->quit();
-		m_workThread->wait(timeoutMs);
+		if (!m_workThread->wait(timeoutMs))
+		{
+			// 嵌套循环响应 m_stopping 后会在极短时间内退出，这里必须等到线程真正结束，
+			// 否则 QThread 会在仍运行时被销毁（崩溃/卡死）
+			m_workThread->wait();
+		}
 	}
 
 	moveToThread(QThread::currentThread());
@@ -224,9 +225,17 @@ void BLEThread::safeUnloadLibrary()
 
 void BLEThread::run()
 {
+	if (m_stopping.load(std::memory_order_acquire))
+		return;
+
 	if (loadBleLibrary())
 	{
 		initializeBle();
+	}
+	else
+	{
+		// DLL 加载失败时也必须通知 GUI，否则界面永远停留在"初始化…"且按钮无任何反应
+		emit connectionFailed();
 	}
 }
 
@@ -266,6 +275,7 @@ void BLEThread::reconnectDevice()
 	{
 		emit logMessage(QString::fromUtf8("BLE重连失败：DLL加载失败"), LogManagement::LogLevel::LOG_ERROR);
 		m_connecting.store(false, std::memory_order_release);
+		emit connectionFailed();
 	}
 }
 
@@ -293,6 +303,9 @@ void BLEThread::controlFan(char* buff)
 {
 	QMutexLocker lock(&m_fanControlMutex);
 
+	// 扫描/连接过程中不处理风扇数据：此时 ConnectionStatus() 会误判为断开，
+	// 反复发出"BLE连接断开"与 disconnected()，导致 GUI 状态乱跳
+	if (m_connecting.load(std::memory_order_acquire)) return;
 	if (!m_deviceInfo.isFind) return;
 	ConnectionStatus();
 
@@ -320,6 +333,7 @@ void BLEThread::autoMode()
 {
 	QMutexLocker lock(&m_modeMutex);
 
+	if (m_connecting.load(std::memory_order_acquire)) return;
 	if (!m_deviceInfo.isFind) return;
 	ConnectionStatus();
 
@@ -339,6 +353,7 @@ void BLEThread::silentMode()
 {
 	QMutexLocker lock(&m_modeMutex);
 
+	if (m_connecting.load(std::memory_order_acquire)) return;
 	if (!m_deviceInfo.isFind) return;
 	ConnectionStatus();
 
@@ -358,6 +373,7 @@ void BLEThread::performanceMode()
 {
 	QMutexLocker lock(&m_modeMutex);
 
+	if (m_connecting.load(std::memory_order_acquire)) return;
 	if (!m_deviceInfo.isFind) return;
 	ConnectionStatus();
 
@@ -395,7 +411,10 @@ void BLEThread::loadDeviceConfig()
 	m_deviceInfo.name = m_config->read("BLE", "TargetName").toString();
 	m_deviceInfo.serviceUuid = static_cast<quint16>(m_config->read("BLE", "TargetServiceUUID").toUInt());
 	m_deviceInfo.characteristicUuid = static_cast<quint16>(m_config->read("BLE", "TargetCharacteristicUUID").toUInt());
-	m_scanCtx.targetName = m_deviceInfo.name;
+	{
+		QMutexLocker lock(&m_scanCtx.mutex);
+		m_scanCtx.targetName = m_deviceInfo.name;
+	}
 }
 
 // ============================================================================
@@ -410,6 +429,7 @@ void BLEThread::scanDevicesInternal(bool matchByName, bool setId, bool emitStart
 	if (matchByName)
 	{
 		// 按名称匹配：使用已加载的 targetName，清空地址匹配
+		QMutexLocker lock(&m_scanCtx.mutex);
 		m_scanCtx.targetName = m_deviceInfo.name;
 	}
 	// else: 按地址匹配（foundAddress 已在 connectToDevice 中设置，targetName 被清空）
@@ -434,11 +454,21 @@ void BLEThread::scanDevicesInternal(bool matchByName, bool setId, bool emitStart
 	timer_maxtime.setSingleShot(true);
 
 	connect(&timer, &QTimer::timeout, [&]() {
+		if (m_stopping.load(std::memory_order_acquire))
+		{
+			timer.stop();
+			timer_maxtime.stop();
+			loop.quit();
+			return;
+		}
 		if (m_scanCtx.isFound.load(std::memory_order_acquire))
 		{
 			if (setId && matchByName)
+			{
+				QMutexLocker lock(&m_scanCtx.mutex);
 				m_deviceInfo.address = m_scanCtx.foundAddress;
-			m_deviceInfo.isFind = true;
+			}
+			m_deviceInfo.isFind.store(true, std::memory_order_release);
 			timer.stop();
 			timer_maxtime.stop();
 			loop.quit();
@@ -461,34 +491,7 @@ void BLEThread::scanDevicesInternal(bool matchByName, bool setId, bool emitStart
 	m_scanId = -1;
 }
 
-void BLEThread::scanDevices()
-{
-	// 首次扫描：按名称匹配，设置 targetName
-	m_scanCtx.targetName = m_deviceInfo.name;
-	m_scanCtx.foundAddress.clear();
-	scanDevicesInternal(true, true, true);
-}
-
-void BLEThread::scanVerifyDevice()
-{
-	// 验证扫描：按地址匹配，使用已保存的 foundAddress
-	m_scanCtx.targetName.clear();
-	// foundAddress 已在 connectToDevice 中设置
-	scanDevicesInternal(false, false, true);
-}
-
-void BLEThread::scanDevicesRetry()
-{
-	m_scanCtx.targetName = m_deviceInfo.name;
-	m_scanCtx.foundAddress.clear();
-	scanDevicesInternal(true, true, false);
-}
-
-void BLEThread::scanVerifyDeviceRetry()
-{
-	m_scanCtx.targetName.clear();
-	scanDevicesInternal(false, false, false);
-}
+// 扫描统一由 scanDevicesInternal 完成；重试以循环形式集成在 performFirstConnection/connectToDevice 中
 
 // ============================================================================
 // 初始化和连接
@@ -496,6 +499,9 @@ void BLEThread::scanVerifyDeviceRetry()
 
 void BLEThread::initializeBle()
 {
+	if (m_stopping.load(std::memory_order_acquire))
+		return;
+
 	if (m_bleInitialized.exchange(true, std::memory_order_acquire))
 	{
 		emit logMessage(QString::fromUtf8("BLE已初始化，跳过重复调用"), LogManagement::LogLevel::LOG_DEBUG);
@@ -509,6 +515,10 @@ void BLEThread::initializeBle()
 			.arg(bleErrorToMessage(initResult)).arg(initResult),
 			LogManagement::LOG_ERROR);
 		m_bleInitialized.store(false, std::memory_order_release);
+		// 必须复位连接标志并通知 GUI，否则 m_connecting 永久卡死，
+		// 重连按钮与状态检测从此全部失效（GUI 无反应）
+		m_connecting.store(false, std::memory_order_release);
+		emit connectionFailed();
 		return;
 	}
 
@@ -528,18 +538,19 @@ void BLEThread::initializeBle()
 		loadDeviceConfig();
 	}
 
+	if (m_stopping.load(std::memory_order_acquire))
+		return;
+
 	m_connecting.store(true, std::memory_order_release);
 	m_deviceInfo.retryCount = 0;
 
 	if (m_config->read("BLE", "Init").toString() == "false")
 	{
 		performFirstConnection();
-		return;
 	}
 	else
 	{
 		connectToDevice(m_config->read("BLE", "TargetID").toString());
-		return;
 	}
 }
 
@@ -550,6 +561,7 @@ void BLEThread::initializeBle()
 bool BLEThread::connectAndWait(const QString& address)
 {
 	m_connResult.store(false, std::memory_order_release);
+	m_connCallbackFired.store(false, std::memory_order_release);
 
 	std::wstring wAddr = address.toStdWString();
 	m_connectionId = m_bleFuncs.connect(wAddr.c_str(), onFirstConnResult, this);
@@ -558,6 +570,7 @@ bool BLEThread::connectAndWait(const QString& address)
 	{
 		BleError err = m_bleFuncs.getLastError ? m_bleFuncs.getLastError() : BLE_ERROR_INTERNAL;
 		emit logMessage(QString::fromUtf8("发起连接失败: %1").arg(bleErrorToMessage(err)), LogManagement::LOG_ERROR);
+		emit connectionFailed();
 		return false;
 	}
 
@@ -573,10 +586,15 @@ bool BLEThread::connectAndWait(const QString& address)
 	pollTimer.setSingleShot(false);
 
 	connect(&pollTimer, &QTimer::timeout, [&]() {
+		if (m_stopping.load(std::memory_order_acquire))
+		{
+			loop.quit();
+			return;
+		}
 		if (m_bleFuncs.isConnected && m_bleFuncs.isConnected(m_connectionId) == 1)
 		{
 			m_connResult.store(true, std::memory_order_release);
-			m_deviceInfo.isConnected = true;
+			m_deviceInfo.isConnected.store(true, std::memory_order_release);
 			loop.quit();
 		}
 	});
@@ -590,7 +608,28 @@ bool BLEThread::connectAndWait(const QString& address)
 	pollTimer.stop();
 	timeoutTimer.stop();
 
-	return m_connResult.load(std::memory_order_acquire);
+	bool result = m_connResult.load(std::memory_order_acquire);
+
+	if (!result)
+	{
+		// 超时/失败：立即取消仍挂起的连接操作。若放任不管，DLL 内部会残留
+		// 异步连接，之后 unload/reload 会破坏其状态，导致"概率性一直连不上"
+		if (m_connectionId >= 0 && m_bleFuncs.disconnect)
+		{
+			m_bleFuncs.disconnect(m_connectionId);
+		}
+		m_connectionId = -1;
+		m_deviceInfo.isConnected.store(false, std::memory_order_release);
+
+		// 仅当回调从未报告结果（纯超时）时补发失败信号，避免 GUI 卡在"连接中…"
+		if (!m_connCallbackFired.load(std::memory_order_acquire))
+		{
+			emit logMessage(QString::fromUtf8("连接超时，已取消本次连接"), LogManagement::LogLevel::LOG_WARNING);
+			emit connectionFailed();
+		}
+	}
+
+	return result;
 }
 
 // ============================================================================
@@ -599,75 +638,38 @@ bool BLEThread::connectAndWait(const QString& address)
 
 void BLEThread::performFirstConnection()
 {
-	scanDevices();
-
+	// 首次连接：按名称扫描（最多 3 次），找到后连接。
+	// 注意：重试必须用循环而非递归——旧实现中递归发生在持有 m_operationMutex 时，
+	// 重试函数内部再次加锁（非递归 QMutex）导致死锁，BLE 线程永久停摆，GUI 无反应。
+	while (m_deviceInfo.retryCount < 3)
 	{
-		QMutexLocker lock(&m_operationMutex);
-		if (!m_deviceInfo.isFind)
-		{
-			emit logMessage(QString::fromUtf8("扫描超时，未找到设备！"), LogManagement::LogLevel::LOG_WARNING);
-			m_deviceInfo.retryCount++;
-			if (m_deviceInfo.retryCount < 3)
-			{
-				performFirstConnectionRetry();
-				return;
-			}
-			else
-			{
-				emit logMessage(QString::fromUtf8("连接失败！已超过最大重连次数！"), LogManagement::LogLevel::LOG_ERROR);
-				emit bleScanTimeout();
-				m_connecting.store(false, std::memory_order_release);
-				return;
-			}
-		}
+		scanDevicesInternal(true, true, m_deviceInfo.retryCount == 0);
 
-		if (m_deviceInfo.isFind && !m_deviceInfo.address.isEmpty())
+		if (m_stopping.load(std::memory_order_acquire))
+			break;
+
+		if (m_deviceInfo.isFind.load(std::memory_order_acquire)
+			&& !m_deviceInfo.address.isEmpty())
 		{
 			if (connectAndWait(m_deviceInfo.address))
 			{
 				m_config->write("BLE", "TargetID", m_deviceInfo.address);
 				m_config->write("BLE", "Init", "true");
-				m_deviceInfo.isConnected = true;
+				m_deviceInfo.isConnected.store(true, std::memory_order_release);
 			}
+			break;
 		}
+
+		emit logMessage(QString::fromUtf8("扫描超时，未找到设备！"), LogManagement::LogLevel::LOG_WARNING);
+		m_deviceInfo.retryCount++;
 	}
-	m_connecting.store(false, std::memory_order_release);
-}
 
-void BLEThread::performFirstConnectionRetry()
-{
-	scanDevicesRetry();
-
+	if (m_deviceInfo.retryCount >= 3)
 	{
-		QMutexLocker lock(&m_operationMutex);
-		if (!m_deviceInfo.isFind)
-		{
-			emit logMessage(QString::fromUtf8("扫描超时，未找到设备！"), LogManagement::LogLevel::LOG_WARNING);
-			m_deviceInfo.retryCount++;
-			if (m_deviceInfo.retryCount < 3)
-			{
-				performFirstConnectionRetry();
-				return;
-			}
-			else
-			{
-				emit logMessage(QString::fromUtf8("连接失败！已超过最大重连次数！"), LogManagement::LogLevel::LOG_ERROR);
-				emit bleScanTimeout();
-				m_connecting.store(false, std::memory_order_release);
-				return;
-			}
-		}
-
-		if (m_deviceInfo.isFind && !m_deviceInfo.address.isEmpty())
-		{
-			if (connectAndWait(m_deviceInfo.address))
-			{
-				m_config->write("BLE", "TargetID", m_deviceInfo.address);
-				m_config->write("BLE", "Init", "true");
-				m_deviceInfo.isConnected = true;
-			}
-		}
+		emit logMessage(QString::fromUtf8("连接失败！已超过最大重连次数！"), LogManagement::LogLevel::LOG_ERROR);
+		emit bleScanTimeout();
 	}
+
 	m_connecting.store(false, std::memory_order_release);
 }
 
@@ -677,69 +679,38 @@ void BLEThread::performFirstConnectionRetry()
 
 void BLEThread::connectToDevice(const QString& address)
 {
-	m_scanCtx.foundAddress = address;
-
-	scanVerifyDevice();
-
 	{
-		QMutexLocker lock(&m_operationMutex);
-		if (!m_deviceInfo.isFind)
-		{
-			emit logMessage(QString::fromUtf8("设备不在范围内！"), LogManagement::LogLevel::LOG_WARNING);
-			m_deviceInfo.retryCount++;
-			if (m_deviceInfo.retryCount < 3)
-			{
-				connectToDeviceRetry(address);
-				return;
-			}
-			else
-			{
-				emit logMessage(QString::fromUtf8("连接失败！已超过最大重连次数！"), LogManagement::LogLevel::LOG_ERROR);
-				emit bleScanTimeout();
-				m_connecting.store(false, std::memory_order_release);
-				return;
-			}
-		}
-
-		if (connectAndWait(address))
-		{
-			m_deviceInfo.isConnected = true;
-		}
+		QMutexLocker lock(&m_scanCtx.mutex);
+		m_scanCtx.foundAddress = address;
 	}
-	m_connecting.store(false, std::memory_order_release);
-}
 
-void BLEThread::connectToDeviceRetry(const QString& address)
-{
-	m_scanCtx.foundAddress = address;
-
-	scanVerifyDeviceRetry();
-
+	// 按地址验证扫描（最多 3 次），找到后连接。同样使用循环避免重试死锁
+	while (m_deviceInfo.retryCount < 3)
 	{
-		QMutexLocker lock(&m_operationMutex);
-		if (!m_deviceInfo.isFind)
+		scanDevicesInternal(false, false, m_deviceInfo.retryCount == 0);
+
+		if (m_stopping.load(std::memory_order_acquire))
+			break;
+
+		if (m_deviceInfo.isFind.load(std::memory_order_acquire))
 		{
-			emit logMessage(QString::fromUtf8("设备不在范围内！"), LogManagement::LogLevel::LOG_WARNING);
-			m_deviceInfo.retryCount++;
-			if (m_deviceInfo.retryCount < 3)
+			if (connectAndWait(address))
 			{
-				connectToDeviceRetry(address);
-				return;
+				m_deviceInfo.isConnected.store(true, std::memory_order_release);
 			}
-			else
-			{
-				emit logMessage(QString::fromUtf8("连接失败！已超过最大重连次数！"), LogManagement::LogLevel::LOG_ERROR);
-				emit bleScanTimeout();
-				m_connecting.store(false, std::memory_order_release);
-				return;
-			}
+			break;
 		}
 
-		if (connectAndWait(address))
-		{
-			m_deviceInfo.isConnected = true;
-		}
+		emit logMessage(QString::fromUtf8("设备不在范围内！"), LogManagement::LogLevel::LOG_WARNING);
+		m_deviceInfo.retryCount++;
 	}
+
+	if (m_deviceInfo.retryCount >= 3)
+	{
+		emit logMessage(QString::fromUtf8("连接失败！已超过最大重连次数！"), LogManagement::LogLevel::LOG_ERROR);
+		emit bleScanTimeout();
+	}
+
 	m_connecting.store(false, std::memory_order_release);
 }
 

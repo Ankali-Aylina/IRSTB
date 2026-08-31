@@ -2,6 +2,16 @@
 
 ---
 
+## v4.0.0.0
+
+- UI 全面迁移至 Qt Quick (QML)，现代化 WinUI 风格界面
+- 新增 Windows 11 云母 (Mica) / 亚克力 (Acrylic) 背景材质
+- 新增浅色 / 深色双主题：支持跟随系统、手动切换，图标随主题自动着色
+- 安全加固：资源提取目录迁移至 %LOCALAPPDATA%，新增 Authenticode 签名校验
+- 修复：重置配置失效、开机自启写入错误、线程数据竞争、QML 样式自定义失效等问题
+
+---
+
 ## v3.4.1.0
 
 - 更换蓝牙底层库为 WinRT_BLE_DLL，基于 C++/WinRT 重构，支持 Windows 11 原生 BLE API

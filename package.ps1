@@ -12,11 +12,14 @@ Set-Location $scriptDir
 $buildDir = "$scriptDir\x64\$Configuration"
 $exePath = "$buildDir\TemperatureControlV3.exe"
 
-$versionLine = Select-String -Path "$scriptDir\ApplicationBootstrap.cpp" -Pattern 'setApplicationVersion'
+$versionLine = Select-String -Path "$scriptDir\resource.h" -Pattern 'APP_VERSION_STR'
 $version = "unknown"
 if ($versionLine -match '"([^"]+)"') { $version = $Matches[1] }
 $zipName = "TemperatureControlV3_v${version}_x64.zip"
-$zipPath = "$scriptDir\$zipName"
+# zip 输出到 installer\ 文件夹（与 Inno 安装包同目录）
+$zipDir = "$scriptDir\installer"
+New-Item -ItemType Directory -Force -Path $zipDir | Out-Null
+$zipPath = "$zipDir\$zipName"
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host " TemperatureControlV3 发布打包" -ForegroundColor Cyan
@@ -26,18 +29,24 @@ Write-Host "========================================" -ForegroundColor Cyan
 # 步骤 1：编译
 if (-not $SkipBuild) {
     Write-Host "[1/4] 编译 Release|x64 ..." -ForegroundColor Yellow
-
     $msbuild = $null
-    $roots = @($env:ProgramFiles, ${env:ProgramFiles(x86)})
-    foreach ($r in $roots) {
-        $vsDir = Join-Path $r "Microsoft Visual Studio"
-        if (-not (Test-Path $vsDir)) { continue }
-        $candidates = Get-ChildItem "$vsDir\*\MSBuild\Current\Bin\MSBuild.exe" -ErrorAction SilentlyContinue
-        if ($candidates) { $msbuild = $candidates[0].FullName; break }
+    # 优先用 vswhere（VS 官方定位工具，兼容所有安装位置/版本/Preview/Build Tools）
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+    if (Test-Path $vswhere) {
+        $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild `
+            -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
     }
-    if (-not $msbuild) { throw "找不到 MSBuild.exe" }
-    Write-Host "  MSBuild: $msbuild" -ForegroundColor DarkGray
-
+    # 兜底：遍历常见目录（注意 VS 实际布局是 2022\Community\MSBuild 两层）
+    if (-not $msbuild) {
+        $roots = @($env:ProgramFiles, ${env:ProgramFiles(x86)})
+        foreach ($r in $roots) {
+            $vsDir = Join-Path $r "Microsoft Visual Studio"
+            if (-not (Test-Path $vsDir)) { continue }
+            $candidates = Get-ChildItem "$vsDir\*\*\MSBuild\Current\Bin\MSBuild.exe" -ErrorAction SilentlyContinue
+            if ($candidates) { $msbuild = $candidates[0].FullName; break }
+        }
+    }
+    if (-not $msbuild) { throw "找不到 MSBuild.exe（请确认已安装 VS2022 或 Build Tools）" }
     & $msbuild "$scriptDir\TemperatureControlV3.sln" /p:Configuration=$Configuration /p:Platform=x64 /m /v:minimal
     if ($LASTEXITCODE -ne 0) { throw "编译失败" }
     Write-Host "  编译完成" -ForegroundColor Green
@@ -61,7 +70,8 @@ else { $windeployqt = "$QtPath\bin\windeployqt.exe" }
 Write-Host "  $windeployqt" -ForegroundColor DarkGray
 
 Push-Location $buildDir
-& $windeployqt "TemperatureControlV3.exe" --no-translations
+# --qmldir 必须指定，否则 QML 引擎找不到 QtQuick 运行时插件
+& $windeployqt "TemperatureControlV3.exe" --no-translations --qmldir "$scriptDir\qml"
 if ($LASTEXITCODE -ne 0) { throw "windeployqt 失败" }
 Pop-Location
 Write-Host "  windeployqt 完成" -ForegroundColor Green

@@ -7,11 +7,13 @@
 
 ## 功能特点
 
+- 现代化 WinUI 风格界面（Qt Quick / QML 重写）
+- Windows 11 云母 (Mica) / 亚克力 (Acrylic) 背景材质
+- 浅色 / 深色双主题：支持跟随系统或手动切换，图标随主题自动着色
 - 实时监测 CPU / GPU 温度（Intel + AMD + NVIDIA）
 - 根据温度自动调节风扇转速
 - 蓝牙 BLE 连接（DX-BT24-T 模块，基于 WinRT BLE API）
 - 开机自启、最小化托盘
-- 现代化深色 UI 界面
 - PawnIO / AMDRyzenMaster 双驱动支持
 
 ## 硬件设计
@@ -67,11 +69,12 @@
 ```
 TemperatureControlV3/
 ├── ApplicationBootstrap    # 启动引导（UAC 提权、资源提取、驱动检测）
-├── TCV3                    # 主窗口 + UI 逻辑
+├── QmlBridge               # C++↔QML 桥（模块管理、托盘、主题/材质）
+├── qml/main.qml            # QML 界面（三页 UI + 对话框）
 ├── TCCore                  # 温度采集 + 风扇控制（独立线程）
 ├── BLEThread               # 蓝牙 LE 通信（独立线程）
 ├── AppModuleManager        # 模块生命周期管理
-├── ResourceExtractor       # 从 QRC 提取运行时资源到 %TEMP%
+├── ResourceExtractor       # 从 QRC 提取运行时资源到 %LOCALAPPDATA%（含签名校验）
 ├── NativeLibraryLoader     # DLL 加载封装
 ├── PawnIoDriverManager     # PawnIO 驱动检测与安装
 ├── IniManagement            # INI 配置读写（QSettings）
@@ -86,7 +89,7 @@ TemperatureControlV3/
 | 技术          | 版本                                             |
 | ------------- | ------------------------------------------------ |
 | C++           | 20                                               |
-| Qt            | 6.11.1 (Core/Gui/Widgets/Concurrent/Network/Svg) |
+| Qt            | 6.11.1 (Core/Gui/Qml/Quick/QuickControls2/Widgets/Concurrent/Network/Svg) |
 | Visual Studio | 2022 (v145, MSVC)                                |
 | Inno Setup    | 7.x                                              |
 | 驱动          | PawnIO / AMDRyzenMasterV27                       |
@@ -97,6 +100,7 @@ TemperatureControlV3/
 
 | 版本         | 主要变更                                                    |
 | ------------ | ----------------------------------------------------------- |
+| **v4.0.0.0** | UI 全面迁移至 Qt Quick (QML)，WinUI 风格界面，新增 Mica/Acrylic 材质与深浅双主题，安全加固 |
 | **v3.4.1.0** | 蓝牙库更换为 WinRT_BLE_DLL，错误日志优化，版本号统一管理    |
 | **v3.4.0.1** | 安装器更新机制，修复恢复默认设置 Bug（竞态条件 + 开机自启） |
 | **v3.4.0.0** | 修复大量 bug，更换 Intel 温度读取驱动，更新 UI              |

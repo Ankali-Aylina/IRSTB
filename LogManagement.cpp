@@ -1,5 +1,6 @@
-﻿#include "LogManagement.h"
+#include "LogManagement.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 
@@ -48,6 +49,9 @@ void LogManagement::logMessage(const QString& message, LogLevel level) {
 
 	// 文件输出
 	if (!m_logFile.isOpen()) {
+		// 用 exe 所在目录的绝对路径：相对路径会随启动时的工作目录漂移，
+		// 导致日志丢失或散落在各处（package.ps1 的清理也会失效）
+		m_logPath = QCoreApplication::applicationDirPath() + "/app.log";
 		m_logFile.setFileName(m_logPath);
 		(void)m_logFile.open(QIODevice::Append | QIODevice::Text);
 	}

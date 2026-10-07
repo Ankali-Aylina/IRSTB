@@ -9,6 +9,50 @@
 - **Windows SDK**：10.0.28000.0
 - **运行**：Release 构建下只需 `config.ini`（首次运行自动生成）和 Qt 运行时 DLL（`platforms/`、`styles/` 等）；原生 DLL 和 `bin/` 已嵌入 exe，启动时自动提取到 `%LOCALAPPDATA%/TemperatureControlV3/TemperatureControlV3_Resources/`
 
+## 版本号规范（改动代码前先读）
+
+### 编号规则
+
+格式固定为 `主.次.修订.构建` 四段，**本项目约定第 4 段恒为 0**（历史版本也遵循此约定：4.0.0.0 / 3.4.1.0 / 3.4.0.1）：
+
+| 段位 | 何时递增 | 典型场景 |
+| --- | --- | --- |
+| **主版本** | 不兼容的大改造 | 框架更换（Widgets → QML 那次是 4.0.0.0）、通信协议不兼容变更 |
+| **次版本** | 新增用户可见功能 | 新增关机散热、新增系统通知、新增设置项；**下位机固件协议变更也算**（用户必须同步刷固件） |
+| **修订号** | 仅修 bug，无新功能 | 修复死锁、修复解析错误、修复缓存判据 |
+| 构建号 | 恒为 0 | — |
+
+判断要点：
+
+- **同一版本号只能对应一份二进制**。只要发布过（`installer/` 里有对应的 zip/Setup），就绝不能再出第二个同号但内容不同的包 —— 用户无法分辨自己装的是哪个。曾踩过：4.2.0.0 已发布后继续改代码仍用同号，导致"内嵌 DLL 换了但提取缓存不更新"的问题难以定位。
+- **只要改动会影响用户可见行为，就必须升版本号**，哪怕只是替换一个内嵌 DLL —— `ResourceExtractor` 以版本号为缓存判据（见下），不升号可能导致新资源不生效。
+- 未正式发布的中间版本可以复用/作废，但要在 `updatalog.md` 里明确标注"内部版本，未正式发布"。
+
+### 版本号的位置（两处，必须同步改）
+
+| 文件 | 内容 | 影响范围 |
+| --- | --- | --- |
+| `resource.h` | `APP_VERSION_STR "x.y.z.0"` + `APP_VERSION_COMMA x,y,z,0` | **单一来源**：exe 版本资源（经 `.rc`）、程序内「关于」页显示、`package.ps1` 生成的 zip 名 |
+| `installer.iss` | `#define MyAppVersion "x.y.z.0"` | Inno Setup 安装包名与注册表 `AppVersion`（**独立副本，不会自动跟随**） |
+
+### 升版本的完整清单
+
+1. 改 `resource.h` 的两行（字符串 + 逗号形式）
+2. 改 `installer.iss` 的 `MyAppVersion`
+3. 在 `res/updatalog.md` **顶部**新增 `## vX.Y.Z.0` 条目（程序内「更新日志」页直接读它）
+4. 更新 `README.md` 的「版本历史」表
+5. **重新构建 Release** —— 版本资源与 QML 内嵌资源（更新日志）都只在构建时才嵌入 exe
+6. 确认 `installer/` 里的旧包已挪走或删除，避免误发
+
+### 与资源提取的联动（重要）
+
+`ResourceExtractor` 用 `[App 版本号]` 作缓存判据，并按文件名+大小记录内容清单（`.manifest`）：
+
+- **版本号变化** → 整个提取目录清空重建，`%LOCALAPPDATA%` 下的旧文件不会残留
+- **版本号不变但文件内容变了** → 靠 `.manifest` 的大小比对发现并重新提取（清单缺失也视为需要重提取）
+- 因此**开发期替换了 `res/lib/` 下的 DLL 后，务必确认应用重新提取**：日志里查 `ResourceExtractor: changed file ...`，或直接核对 `%LOCALAPPDATA%/TemperatureControlV3/TemperatureControlV3_Resources/` 下文件的大小/MD5
+- ⚠️ 不要试图用"QRC 内文件大小"比对来判断是否需要重新提取：QRC 是压缩存储，`QFileInfo(":/...").size()` 拿到的是压缩后大小，与磁盘上的解压文件永远不相等（这个判据曾经失效，导致换了 DLL 却不更新）
+
 ## 架构
 
 详见 `/memories/repo/architecture.md`。简要说明：
@@ -73,7 +117,9 @@ m_moduleManager->stopAll();  // 逆序停止（BLE 在 TCCore 之前）
 | `nv_dll.dll`        | TCCore    | NVIDIA GPU 温度                 |
 | `WinRT_BLE_DLL.dll` | BLEThread | 蓝牙 LE 通信（WinRT/C++/WinRT） |
 
-> **工作原理**：`ApplicationBootstrap::run()` 调用 `ResourceExtractor::extract()` → 从 QRC 复制文件到 `%LOCALAPPDATA%/TemperatureControlV3/` → 对 .dll/.exe/.sys 做 Authenticode 校验（签名无效的文件删除并中止启动）→ 调用 `SetDllDirectoryW` 将该目录加入 DLL 搜索路径 → `NativeLibraryLoader` 从搜索路径中找到 DLL。版本标记文件确保只在版本变化时重新提取。
+> **工作原理**：`ApplicationBootstrap::run()` 调用 `ResourceExtractor::extract()` → 从 QRC 复制文件到 `%LOCALAPPDATA%/TemperatureControlV3/TemperatureControlV3_Resources/` → 对 .dll/.exe/.sys 做 Authenticode 校验（签名无效的文件删除并中止启动）→ 调用 `SetDllDirectoryW` 将该目录加入 DLL 搜索路径 → `NativeLibraryLoader` 从搜索路径中找到 DLL。
+>
+> **是否需要重新提取的判据**（详见「版本号规范」节）：版本号变化 → 整体清空重建；版本号不变 → 比对 `.manifest` 内容清单（文件名+大小），不一致即重新提取，清单缺失也视为需要重提取。
 
 加载时使用初始化列表批量解析符号，**切勿**直接使用原始 `QLibrary`。
 
@@ -89,6 +135,7 @@ m_moduleManager->stopAll();  // 逆序停止（BLE 在 TCCore 之前）
 TCCore::controlDataUpdated  ──→  BLEThread::controlFan       (QueuedConnection)
 TCCore::updateConnectionStatus ──→ BLEThread::updateConnectionStatus
 QmlBridge::setFanMode（QML 调用）──→ BLEThread::*Mode
+QmlBridge::startShutdownCooling（QML 调用）──→ BLEThread::shutdownCooling
 BLEThread::ble*               ──→  QmlBridge::setBleUiState（QML 属性 bleState/bleStatusText）
 ```
 
@@ -97,6 +144,48 @@ BLEThread::ble*               ──→  QmlBridge::setBleUiState（QML 属性 b
 - 自动模式：连接 `controlDataUpdated → controlFan`（温度驱动调速）
 - 静音/性能模式：断开连接（仅手动控制）
 - `setFanMode()` 同时管理按钮 UI 状态和此连接
+
+### 关机散热（Shutdown Cooling）
+
+上位机只负责**下发一次指令**，倒计时由下位机 MCU 独立完成（LPTIM 秒级），因此蓝牙断开/程序退出/电脑关机都不会中断散热：
+
+| 层 | 职责 |
+| --- | --- |
+| QML | `shutdownPanel` 面板：时长 −/+ 与「开始散热」按钮 → `bridge.changeShutdownMinutes()` / `bridge.startShutdownCooling()` |
+| QmlBridge | 时长持久化到 `TC/ShutdownMinutes`（1~10，默认 3，越界重置）；`startShutdownCooling()` 转发给 BLEThread |
+| BLEThread | `shutdownCooling(minutes)` 组帧 `T<分钟>\n` 并写入特征值；置位 `m_shutdownActive` |
+
+关键约定：
+
+- **协议常量集中在 `BLEThread.h`**（`kShutdownCmdHeader`、`kMinShutdownMinutes`、`kMaxShutdownMinutes`、`kDefaultShutdownMinutes`）；下位机硬上限 60 分钟（2 位十进制），改 `kMaxShutdownMinutes` 无需重刷下位机固件
+- **倒计时期间上位机停止下发温度调速帧**：`BLEThread::controlFan()` 在 `m_shutdownActive` 为真时直接返回，避免每秒一次的无效 BLE 写入与日志
+- **取消只能靠"重新选择风扇模式"**：`QmlBridge::setFanMode()` → `BLEThread::notifyShutdownCancelled()` 清标志，随后发出的模式指令（`'0'`~`'6'`）让下位机恢复响应
+- **无法读取下位机状态** → **已解决**：`WinRT_BLE_DLL.dll`（源码 `D:\code\WinRT_BLE`，CMake 工程）从 v1.0.0 起导出 `BleSubscribeCharacteristic` / `BleUnsubscribeCharacteristic` / `BleReadCharacteristic` / `BleGetVersion`。BLEThread 在连接成功后自动订阅 FFE1，并把下位机回传写进日志；DLL 若缺少这些导出只提示一条告警，不影响风扇控制
+- **通知帧不保证"一行一条"**：实测 `OK.60\n` 会被拆成多条 BLE 通知（先 `OK` 后 `.60\n`）。`onDeviceStatusReport()` 必须先把字节追加到 `m_notifyBuffer` 再按 `\n` 切分，逐条处理；订阅/退订时清空缓冲，避免跨连接的半行数据被拼成错误帧
+- **掉线提示去重**：`m_deviceInfo.isFind` 在首次扫描成功后就不再复位，而 `controlFan()` 由温度更新周期性触发（默认 5 s），因此掉线期间会反复刷"BLE连接断开"。统一走 `reportDisconnectedOnce()`（`m_disconnectReported` 标志），并在「连接成功」与「写入成功」时复位该标志；新增会发 `disconnected()` 或该日志的路径时请复用它
+- **指令被拒后自动重发一次**：下位机回 `TO`/`WAIT` 表示指令未生效，`scheduleShutdownRetry()` 会在 600 ms 后重发（`m_shutdownRetryUsed` 保证同一轮只重试一次）
+- **散热结束后自动切回自动模式**：下位机收尾时只关风扇、**不锁定**，因此收到 `FIN` 后 `BLEThread::restoreAutoModeAfterShutdown()` 会立即下发 `'0'`（走 `autoMode()`，与用户点"自动"同一条路径），风扇随后按温度调速。`m_autoRestoreDone` 保证 FIN 与兜底定时器都触发时只恢复一次；切回自动前会先判断连接状态，未连接则提示用户重连
+- **中途断连会丢掉 `FIN`**：下位机照常在内部走完倒计时，但上位机收不到结束回传。`scheduleShutdownFinishedCheck(seconds)` 按 `OK.<秒>` 自报值 +5 s 兜底判定并照常走恢复流程，避免恢复永不发生
+- **散热结束要提示用户**：结束后风扇会短暂断电再被自动模式接管，期间界面原本毫无变化。`shutdownCoolingFinished` → `QmlBridge::showShutdownNotice(text, autoDismiss)` → 首页提示条。**信息型提示（autoDismiss=true）6 秒后自动消失、且会被切模式清掉；错误型提示（如"蓝牙未连接"）必须用户手动关闭**，否则自动恢复流程会瞬间把它清掉，用户根本看不到
+- **指令没发出去不能只写日志**：未连接/正在连接时原本静默 return，界面表现为"点了没反应"。统一 emit `commandNotSent(reason)`，由 QmlBridge 显示成需手动处理的提示条
+- **系统通知用 Qt 托盘 `showMessage()`**：`QmlBridge::showSystemNotification()` 经 `QSystemTrayIcon::showMessage()` 弹出（内部走 `Shell_NotifyIcon`），窗口最小化/隐藏到托盘时同样可见。要点：
+  - **通知文案要短**：标题 ≤8 字、正文一句话（如「散热已完成 / 风扇已断电，已切回自动模式」）。通知宽度由系统决定，长文本会被折行截断
+  - `kNotifyTimeoutMs = 10000` 停留时长；`kNotifyThrottleMs = 3000` 节流（3 秒内重复通知只弹第一条，防用户连点刷屏）
+  - 由 `[App]/ToastNotify` 开关控制（默认开启）；开关打开时立刻弹一条示例，并**绕过节流**（把 `m_lastNotifyMs` 置 0）
+  - 托盘不可用时只记 WARNING，界面内提示条仍照常工作
+  - ⚠️ **不要改用 WinRT `ToastNotificationManager`**：用「exe 全路径当 AUMID」的写法调用会全部成功（`init_apartment/LoadXml/CreateToastNotifier/Show` 均不报错），但**系统对未注册的 AUMID 静默丢弃通知，用户什么都看不到**（已实测踩坑）。要真出原生卡片必须让系统认识该 AUMID：开始菜单放带 AUMID 属性的快捷方式，或走 MSIX 打包 / 注册 COM 通知激活器——对绿色免安装形态代价过高
+
+### 下位机固件版本查询
+
+连接并订阅 FFE1 成功后，`BLEThread::queryDeviceVersion()` 自动发送 `"V\n"`，下位机（固件 **1.3.0+**）回传 `"V<固件版本>.<协议版本>"`（如 `V1.3.0.1.1`）：
+
+| 要点 | 做法 |
+| --- | --- |
+| 帧解析 | `onDeviceStatusReport()` 里以 `V` 开头的行交给 `handleVersionResponse()` 并 `continue`——版本回传不是"指令执行结果"，不能混进散热事件流 |
+| 显示位置 | 上位机版本号下方（「关于」页）。⚠️ **不能放设置页**：设置页没有滚动容器，可用高度仅 468px，已用 424px，再加一个 64px 面板会溢出 |
+| 旧固件降级 | 固件 < 1.3.0 不会回传。`kVersionQueryTimeoutMs = 2500` 超时后 emit `firmwareVersionReceived("", "", true)`，界面显示"版本未知"。**旧固件仍支持关机散热（1.2.0 起），因此超时时按"支持"处理**，避免误禁用功能 |
+| 最低版本常量 | `kMinFwMajor/MinorForShutdown`（1.2.0）、`kMinFwMajor/MinorForVersionQuery`（1.3.0）；`firmwareSupportsShutdown` 由回传版本比对得出，界面据此标红提示 |
+| 版本来源 | 固件侧：`main.h` 的 `FW_VERSION_*` + `fw_version.h` 的 `FW_PROTOCOL_VERSION_STR`；协议版本只在"上位机需同步适配"时递增 |
 
 ### 错误处理约定
 
@@ -115,6 +204,8 @@ BLEThread::ble*               ──→  QmlBridge::setBleUiState（QML 属性 b
 | ------- | --------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `"App"` | 全局      | `FirstRun`（首次运行标记，替代旧版各段 `InitStatus`）                                                                  |
 | `"TC"`  | TCCore    | `DataTransmissionDelay`, `InitCpuTemp`, `InitGpuTemp`, `CpuStep`, `GpuStep`, `WarningCpu`, `WarningGpu`, `HistorySize` |
+| `"TC"`  | QmlBridge | `ShutdownMinutes`（关机散热时长，1~10 分钟，默认 3；在 UI 上点一次 +/- 即写盘）                                        |
+| `"App"` | QmlBridge | `ThemeMode`, `BackdropType`, `ToastNotify`（系统通知开关，默认开启）                                                   |
 | `"BLE"` | BLEThread | `Init`, `TargetName`, `TargetServiceUUID`, `TargetCharacteristicUUID`, `TargetID`                                      |
 | `"UI"`  | TCV3      | （已废弃 `dataTxDelay`，延时统一存 `TC/DataTransmissionDelay`，旧键自动迁移）                                  |
 

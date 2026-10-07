@@ -9,9 +9,12 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QMenu>
 #include <QMessageBox>
 #include <QProcess>
@@ -78,6 +81,18 @@ QmlBridge::QmlBridge(QObject* parent)
 		}
 	}
 
+	// 关机散热时长：TC/ShutdownMinutes（分钟），非法值重置为默认值
+	{
+		QVariant v = m_config->read("TC", "ShutdownMinutes");
+		int minutes = v.isValid() ? v.toInt() : kDefaultShutdownMinutes;
+		if (minutes < kMinShutdownMinutes || minutes > kMaxShutdownMinutes)
+		{
+			minutes = kDefaultShutdownMinutes;
+			m_config->write("TC", "ShutdownMinutes", QString::number(minutes));
+		}
+		m_shutdownMinutes = minutes;
+	}
+
 	m_autoStartEnabled = isAutoStartEnabled();
 	m_systemDark = detectSystemDark();
 
@@ -103,6 +118,10 @@ QmlBridge::QmlBridge(QObject* parent)
 		v = m_config->read("App", "BackdropType");
 		if (v.isValid()) m_backdropType = v.toInt();
 		if (m_backdropType < 0 || m_backdropType > 2) m_backdropType = 1;
+
+		// 系统通知开关：默认开启（缺省或非法值都视为开启）
+		v = m_config->read("App", "ToastNotify");
+		m_notifyEnabled = v.isValid() ? v.toBool() : true;
 	}
 }
 
@@ -175,6 +194,152 @@ void QmlBridge::setupBleConnections()
 	connect(ble, &BLEThread::disconnected, this, [this]() {
 		setBleUiState(BleDisconnected, QStringLiteral("断开连接"));
 	});
+
+	// 关机散热结束：下位机把风扇断电后并不锁定，BLEThread 会立即切回自动模式。
+	// 蓝牙仍连着时界面原本毫无变化，用户会以为"风扇坏了"，因此这里给一条说明
+	connect(ble, &BLEThread::shutdownCoolingFinished, this, [this]() {
+		showShutdownNotice(
+			QStringLiteral("关机散热已结束，风扇已自动断电；正在切回自动模式，之后将按温度自动调速。"),
+			true);
+		// 窗口最小化到托盘时看不到界面提示条，靠系统通知触达用户。
+		// 标题保持 8 字以内、正文一句话，避免通知被折行截断
+		showSystemNotification(QStringLiteral("散热已完成"),
+			QStringLiteral("风扇已断电，已切回自动模式"));
+	});
+
+	// 指令没能下发（未连接/正在连接）：以前只写日志，界面表现为"点了没反应"
+	connect(ble, &BLEThread::commandNotSent, this, [this](const QString& reason) {
+		// 这类提示需要用户处理（重连/重试），不自动消失
+		showShutdownNotice(reason, false);
+		showSystemNotification(QStringLiteral("指令未送达"), reason);
+	});
+
+	// 下位机版本回传：显示在设置页；固件过旧时明确提示
+	// （否则"点开始散热没反应"极难排查——固件是静默忽略 T 指令的）
+	connect(ble, &BLEThread::firmwareVersionReceived, this,
+		[this](const QString& firmware, const QString& protocol, bool supportsShutdown) {
+			m_firmwareVersion = firmware;
+			m_firmwareProtocol = protocol;
+			m_firmwareSupportsShutdown = supportsShutdown;
+			emit firmwareVersionChanged(m_firmwareVersion);
+			emit firmwareProtocolChanged(m_firmwareProtocol);
+			emit firmwareSupportsShutdownChanged(m_firmwareSupportsShutdown);
+		});
+
+	// ---- 固件升级 ----
+	connect(ble, &BLEThread::otaProgress, this, [this](qint64 sent, qint64 total) {
+		m_otaPercent = (total > 0) ? static_cast<int>(sent * 100 / total) : 0;
+		emit otaProgressChanged();
+	});
+	connect(ble, &BLEThread::otaStateChanged, this, [this](const QString& text) {
+		m_otaStatusText = text;
+		emit otaStatusTextChanged();
+	});
+	connect(ble, &BLEThread::otaFinished, this, [this]() {
+		m_otaRunning = false;
+		m_otaStatusText = QStringLiteral("升级成功，下位机正在重启并运行新固件");
+		m_otaPercent = 100;
+		emit otaRunningChanged();
+		emit otaStatusTextChanged();
+		emit otaProgressChanged();
+		// 升级成功后固件版本会变，稍后重连时自动重新查询
+		showSystemNotification(QStringLiteral("固件升级成功"),
+			QStringLiteral("下位机正在重启运行新固件"));
+	});
+	connect(ble, &BLEThread::otaFailed, this, [this](const QString& reason) {
+		m_otaRunning = false;
+		m_otaStatusText = QStringLiteral("升级失败：%1").arg(reason);
+		emit otaRunningChanged();
+		emit otaStatusTextChanged();
+		showSystemNotification(QStringLiteral("固件升级失败"), reason);
+	});
+
+	// 界面的升级意图 → 业务模块（保持"QmlBridge 是唯一中枢"的约定）
+	connect(this, &QmlBridge::requestFirmwareUpgrade, ble, &BLEThread::startFirmwareUpgrade);
+	connect(this, &QmlBridge::requestFirmwareUpgradeCancel, ble, &BLEThread::cancelFirmwareUpgrade);
+}
+
+void QmlBridge::chooseFirmwareAndUpgrade()
+{
+	if (m_otaRunning)
+	{
+		showShutdownNotice(QStringLiteral("已有升级正在进行，请等待其完成"), true);
+		return;
+	}
+
+	// 升级需要先断开与上位机的数据流，因此要求已连接
+	if (m_bleState != BleConnected)
+	{
+		showShutdownNotice(QStringLiteral("蓝牙未连接，无法升级固件。请先连接下位机。"), false);
+		return;
+	}
+
+	const QString file = QFileDialog::getOpenFileName(
+		nullptr,
+		QStringLiteral("选择下位机固件"),
+		QString(),
+		QStringLiteral("固件文件 (*.bin *.hex);;所有文件 (*)"));
+	if (file.isEmpty()) return;   // 用户取消
+
+	m_otaPercent = 0;
+	m_otaRunning = true;
+	m_otaStatusText = QStringLiteral("正在准备升级…");
+	emit otaProgressChanged();
+	emit otaRunningChanged();
+	emit otaStatusTextChanged();
+
+	emit logMessage(QStringLiteral("开始固件升级：%1").arg(file), LogManagement::LOG_INFO);
+	emit requestFirmwareUpgrade(file);
+}
+
+void QmlBridge::cancelFirmwareUpgrade()
+{
+	if (!m_otaRunning) return;
+	emit requestFirmwareUpgradeCancel();
+}
+
+void QmlBridge::showSystemNotification(const QString& title, const QString& message)
+{
+	// 用户在设置里关掉了系统通知
+	if (!m_notifyEnabled) return;
+
+	// 托盘不可用（极少数环境）时只记日志，界面内提示条仍然有效
+	if (!m_trayIcon || !QSystemTrayIcon::isSystemTrayAvailable())
+	{
+		emit logMessage(QStringLiteral("系统通知不可用（托盘未就绪），已跳过：%1").arg(title),
+			LogManagement::LogLevel::LOG_WARNING);
+		return;
+	}
+
+	// 短时间内的重复通知只弹第一条，避免用户在界面上连点按钮时被刷屏
+	const qint64 now = QDateTime::currentMSecsSinceEpoch();
+	if (now - m_lastNotifyMs < kNotifyThrottleMs) return;
+	m_lastNotifyMs = now;
+
+	// 标题与正文都会由系统按通知宽度自动换行：标题保持短，正文控制在一句话内
+	m_trayIcon->showMessage(title, message, QSystemTrayIcon::Information, kNotifyTimeoutMs);
+	emit logMessage(QStringLiteral("已弹出系统通知：%1").arg(title),
+		LogManagement::LogLevel::LOG_INFO);
+}
+
+void QmlBridge::showShutdownNotice(const QString& text, bool autoDismiss)
+{
+	m_shutdownNotice = text;
+	m_shutdownNoticeAuto = autoDismiss;
+	emit shutdownNoticeChanged();
+
+	if (!m_shutdownNoticeTimer)
+	{
+		m_shutdownNoticeTimer = new QTimer(this);
+		m_shutdownNoticeTimer->setSingleShot(true);
+		connect(m_shutdownNoticeTimer, &QTimer::timeout, this, [this]() {
+			// 信息型提示到点后自行消失；切模式触发的 clearShutdownNotice 会先把它停掉
+			if (m_shutdownNoticeAuto) clearShutdownNotice();
+		});
+	}
+
+	if (autoDismiss) m_shutdownNoticeTimer->start(6000);
+	else            m_shutdownNoticeTimer->stop();
 }
 
 void QmlBridge::setBleUiState(BleUiState state, const QString& text)
@@ -213,6 +378,12 @@ void QmlBridge::setFanMode(int mode)
 	auto* tcc = m_moduleManager->getModule<TCCore>();
 	auto* ble = m_moduleManager->getModule<BLEThread>();
 	if (!tcc || !ble) return;
+
+	// 用户手动切换模式即视为接管风扇控制（关机散热期间只有此处会把控制权收回）
+	ble->notifyShutdownCancelled();
+
+	// 用户已重新选择模式：清掉"散热已结束"的提示
+	clearShutdownNotice();
 
 	if (mode == 0) // 自动：温度驱动调速
 	{
@@ -271,6 +442,62 @@ void QmlBridge::applyDelay()
 	if (auto* tcc = m_moduleManager->getModule<TCCore>())
 		tcc->setDataTrDelayUpdataFlag(true);
 	emit logMessage(QStringLiteral("设置延时为%1s").arg(m_delayUiSeconds), LogManagement::LOG_INFO);
+}
+
+// ============================================================================
+// 关机散热
+// ============================================================================
+
+void QmlBridge::changeShutdownMinutes(int delta)
+{
+	const int v = m_shutdownMinutes + delta;
+	if (v < kMinShutdownMinutes || v > kMaxShutdownMinutes)
+	{
+		emit logMessage(QStringLiteral("关机散热时长超出范围（%1~%2 分钟）")
+			.arg(kMinShutdownMinutes).arg(kMaxShutdownMinutes),
+			LogManagement::LOG_ERROR);
+		return;
+	}
+	m_shutdownMinutes = v;
+	// 与延时不同，时长立即落盘：关机散热常在用户即将关机前使用，避免未保存即退出
+	m_config->write("TC", "ShutdownMinutes", QString::number(v));
+	emit shutdownMinutesChanged(v);
+	emit logMessage(QStringLiteral("关机散热时长设为 %1 分钟").arg(v), LogManagement::LOG_INFO);
+}
+
+void QmlBridge::startShutdownCooling()
+{
+	auto* ble = m_moduleManager->getModule<BLEThread>();
+	if (!ble) return;
+
+	// 新一轮散热开始，清掉上一轮遗留的提示
+	clearShutdownNotice();
+
+	ble->shutdownCooling(m_shutdownMinutes);
+}
+
+void QmlBridge::clearShutdownNotice()
+{
+	if (m_shutdownNotice.isEmpty()) return;
+
+	// 切换模式/重新开始散热时清掉信息型提示；
+	// 但"蓝牙未连接"这类需要用户处理的提示保留，避免一操作就消失
+	if (!m_shutdownNoticeAuto) return;
+
+	if (m_shutdownNoticeTimer) m_shutdownNoticeTimer->stop();
+	m_shutdownNotice.clear();
+	m_shutdownNoticeAuto = false;
+	emit shutdownNoticeChanged();
+}
+
+void QmlBridge::dismissShutdownNotice()
+{
+	// 用户主动点关闭：无条件清除（含错误提示）
+	if (m_shutdownNoticeTimer) m_shutdownNoticeTimer->stop();
+	if (m_shutdownNotice.isEmpty()) return;
+	m_shutdownNotice.clear();
+	m_shutdownNoticeAuto = false;
+	emit shutdownNoticeChanged();
 }
 
 // ============================================================================
@@ -361,6 +588,25 @@ void QmlBridge::setBackdropType(int type)
 	m_config->write("App", "BackdropType", QString::number(type));
 	emit backdropTypeChanged(type);
 	applyDwmBackdrop();
+}
+
+void QmlBridge::toggleNotify()
+{
+	m_notifyEnabled = !m_notifyEnabled;
+	m_config->write("App", "ToastNotify", m_notifyEnabled ? "true" : "false");
+	emit notifyEnabledChanged(m_notifyEnabled);
+	emit logMessage(m_notifyEnabled ? QStringLiteral("已开启系统通知")
+	                                : QStringLiteral("已关闭系统通知"),
+		LogManagement::LOG_INFO);
+
+	// 开启时立刻弹一条示例，让用户马上确认通知能正常显示
+	if (m_notifyEnabled)
+	{
+		// 刚刚切开关，绕过节流，确保示例一定能弹出来
+		m_lastNotifyMs = 0;
+		showSystemNotification(QStringLiteral("通知已开启"),
+			QStringLiteral("散热完成或指令失败时会在这里提醒"));
+	}
 }
 
 void QmlBridge::applyWindowBackdrop(WId hwnd)

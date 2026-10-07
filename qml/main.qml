@@ -56,6 +56,7 @@ Window {
         readonly property color textOnAccent: "#FFFFFF"
         readonly property color danger: "#C42B1C"
         readonly property color dangerHover: "#A82417"
+        readonly property color dangerSoft: "#F7E4E1"   // 警示底色（浅）
         readonly property color success: "#0F7B0F"
     }
 
@@ -77,6 +78,7 @@ Window {
         readonly property color textOnAccent: "#000000"
         readonly property color danger: "#FF99A4"
         readonly property color dangerHover: "#FFB3BB"
+        readonly property color dangerSoft: "#3D2A2C"   // 警示底色（深）
         readonly property color success: "#6CCB5F"
     }
 
@@ -334,7 +336,7 @@ Window {
                 Row {
                     id: controlRow
                     anchors.top: blePanel.bottom
-                    anchors.topMargin: 16
+                    anchors.topMargin: 12
                     anchors.left: parent.left
                     anchors.right: parent.right
                     spacing: 16
@@ -342,7 +344,7 @@ Window {
                     // ---- 风扇模式面板 ----
                     Rectangle {
                         width: (parent.width - parent.spacing) / 2
-                        height: 112
+                        height: 100
                         radius: 10
                         color: theme.bgPanel
 
@@ -377,7 +379,7 @@ Window {
                     // ---- 数据发送延时面板 ----
                     Rectangle {
                         width: (parent.width - parent.spacing) / 2
-                        height: 112
+                        height: 100
                         radius: 10
                         color: theme.bgPanel
 
@@ -421,6 +423,124 @@ Window {
                                     horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                                 }
                             }
+                        }
+                    }
+                }
+
+                // ---- 关机散热：全速运行 N 分钟后自动关闭风扇 ----
+                Rectangle {
+                    id: shutdownPanel
+                    anchors.top: controlRow.bottom
+                    anchors.topMargin: 12
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    height: 88
+                    radius: 10
+                    color: theme.bgPanel
+
+                    Text {
+                        id: shutdownLabel
+                        anchors.left: parent.left; anchors.leftMargin: 16
+                        anchors.top: parent.top; anchors.topMargin: 16
+                        text: qsTr("关机散热")
+                        color: theme.textPrimary; font.pixelSize: 13
+                    }
+                    Text {
+                        id: shutdownHint
+                        anchors.left: parent.left; anchors.leftMargin: 16
+                        anchors.right: shutdownControls.left; anchors.rightMargin: 16
+                        anchors.top: shutdownLabel.bottom; anchors.topMargin: 6
+                        // 明确提示时长由下位机独立计时，便于用户理解"可以立刻关机"
+                        text: qsTr("风扇满速运行设定时长后自动断电；倒计时由下位机独立完成，期间蓝牙断开或电脑关机均不受影响")
+                        color: theme.textSecondary; font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                    }
+                    Row {
+                        id: shutdownControls
+                        anchors.right: parent.right; anchors.rightMargin: 16
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 10
+                        IconButton {
+                            source: "qrc:/TCV3/res/icon/minus.png"
+                            onClicked: bridge.changeShutdownMinutes(-1)
+                        }
+                        Rectangle {
+                            width: 72; height: 34; radius: 6; color: theme.bgTrack
+                            anchors.verticalCenter: parent.verticalCenter
+                            Text {
+                                anchors.centerIn: parent
+                                text: bridge.shutdownMinutes + " min"
+                                color: theme.textPrimary; font.pixelSize: 14
+                            }
+                        }
+                        IconButton {
+                            source: "qrc:/TCV3/res/icon/add.png"
+                            onClicked: bridge.changeShutdownMinutes(1)
+                        }
+                        Button {
+                            focusPolicy: Qt.NoFocus
+                            text: qsTr("开始散热")
+                            onClicked: bridge.startShutdownCooling()
+                            background: Rectangle {
+                                radius: 6
+                                color: parent.pressed ? theme.dangerHover
+                                     : parent.hovered ? theme.dangerHover : theme.danger
+                                implicitWidth: 84; implicitHeight: 34
+                            }
+                            contentItem: Text {
+                                text: parent.text; color: theme.textOnAccent
+                                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+                    }
+                }
+
+                // ---- 关机散热结束提示（蓝牙仍连着时界面没有异常迹象，必须显式提示，
+                //      否则用户会以为"点了没反应/功能坏了"）----
+                Rectangle {
+                    id: shutdownNoticeBar
+                    anchors.top: shutdownPanel.bottom
+                    anchors.topMargin: 12
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    height: 40
+                    radius: 8
+                    color: theme.dangerSoft
+                    border.color: theme.danger
+                    border.width: 1
+                    visible: bridge.shutdownNotice.length > 0
+
+                    ThemeIcon {
+                        anchors.left: parent.left; anchors.leftMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        source: "qrc:/TCV3/res/icon/warning_line.png"
+                        iconWidth: 16; iconHeight: 16
+                        color: theme.danger
+                    }
+                    Text {
+                        anchors.left: parent.left; anchors.leftMargin: 40
+                        anchors.right: noticeClose.left; anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        // 文案由 bridge 提供，避免 QML 与 C++ 两处维护
+                        text: bridge.shutdownNotice
+                        color: theme.textPrimary; font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
+                    }
+                    // 关闭按钮：用文字实现，避免为一个按钮新增组件
+                    Text {
+                        id: noticeClose
+                        anchors.right: parent.right; anchors.rightMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "\u2715"
+                        color: theme.danger
+                        font.pixelSize: 13
+                        MouseArea {
+                            anchors.fill: parent
+                            anchors.margins: -6      // 扩大点击区域
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: bridge.dismissShutdownNotice()
                         }
                     }
                 }
@@ -531,9 +651,50 @@ Window {
                     }
                 }
 
+                // 系统通知（关机散热结束 / 指令下发失败时右下角弹出，最小化也可见）
+                Rectangle {
+                    id: notifyPanel
+                    anchors.top: autostartPanel.bottom; anchors.topMargin: 14
+                    anchors.left: parent.left; anchors.right: parent.right
+                    height: 64; radius: 10; color: theme.bgPanel
+
+                    ThemeIcon {
+                        id: notifyIcon
+                        source: "qrc:/TCV3/res/icon/warning_line.png"
+                        iconWidth: 28; iconHeight: 28
+                        color: theme.textSecondary
+                        anchors.left: parent.left; anchors.leftMargin: 16
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        anchors.left: notifyIcon.right; anchors.leftMargin: 12
+                        anchors.top: parent.top; anchors.topMargin: 15
+                        text: qsTr("系统通知")
+                        color: theme.textPrimary; font.pixelSize: 14
+                    }
+                    Text {
+                        anchors.left: notifyIcon.right; anchors.leftMargin: 12
+                        anchors.top: parent.top; anchors.topMargin: 36
+                        text: qsTr("关机散热结束或指令下发失败时，在右下角弹出提示（窗口最小化也可见）")
+                        color: theme.textTertiary; font.pixelSize: 11
+                        elide: Text.ElideRight
+                        anchors.right: notifyToggle.left; anchors.rightMargin: 10
+                    }
+                    IconButton {
+                        id: notifyToggle
+                        anchors.right: parent.right; anchors.rightMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 56; height: 30
+                        source: bridge.notifyEnabled
+                                ? "qrc:/TCV3/res/icon/switch-on.png"
+                                : "qrc:/TCV3/res/icon/switch-off.png"
+                        onClicked: bridge.toggleNotify()
+                    }
+                }
+
                 // 重置设置
                 Rectangle {
-                    anchors.top: autostartPanel.bottom; anchors.topMargin: 14
+                    anchors.top: notifyPanel.bottom; anchors.topMargin: 14
                     anchors.left: parent.left; anchors.right: parent.right
                     height: 64; radius: 10; color: theme.bgPanel
 
@@ -580,7 +741,7 @@ Window {
                 Rectangle {
                     anchors.top: parent.top; anchors.topMargin: 30
                     anchors.left: parent.left; anchors.right: parent.right
-                    height: 110; radius: 10; color: theme.bgPanel
+                    height: 142; radius: 10; color: theme.bgPanel
 
                     // 点击 Logo 触发彩蛋 🥚
                     Item {
@@ -620,17 +781,40 @@ Window {
                         text: qsTr("根据电脑温度自动调节风扇转速")
                         color: theme.textTertiary; font.pixelSize: 11
                     }
-                    // 资金支持致谢（原 Widgets 版 TCV3.ui 中的 Label，QML 迁移时一并恢复）
+
+                    // 下位机固件版本（连接后自动查询）：固件过旧时标红，
+                    // 因为那种情况下「关机散热」会被下位机静默忽略
                     Text {
                         anchors.left: parent.left; anchors.leftMargin: 104
                         anchors.top: parent.top; anchors.topMargin: 96
+                        font.pixelSize: 11
+                        color: bridge.firmwareSupportsShutdown ? theme.textTertiary : theme.danger
+                        text: {
+                            if (bridge.firmwareVersion.length > 0) {
+                                var t = qsTr("下位机固件 v") + bridge.firmwareVersion
+                                if (bridge.firmwareProtocol.length > 0)
+                                    t += "（协议 " + bridge.firmwareProtocol + "）"
+                                if (!bridge.firmwareSupportsShutdown)
+                                    t += qsTr("　版本过旧，关机散热不可用")
+                                return t
+                            }
+                            return bridge.bleState === 3
+                                   ? qsTr("下位机固件版本未知（固件不支持版本查询）")
+                                   : qsTr("下位机固件版本：未连接")
+                        }
+                    }
+
+                    // 资金支持致谢（原 Widgets 版 TCV3.ui 中的 Label，QML 迁移时一并恢复）
+                    Text {
+                        anchors.left: parent.left; anchors.leftMargin: 104
+                        anchors.top: parent.top; anchors.topMargin: 116
                         text: qsTr("感谢 cyjycx 的资金支持！")
                         color: theme.accent; font.pixelSize: 12; font.bold: true
                     }
                 }
 
                 Row {
-                    anchors.top: parent.top; anchors.topMargin: 160
+                    anchors.top: parent.top; anchors.topMargin: 188
                     spacing: 14
                     ActionButton {
                         text: qsTr("更新日志")
@@ -641,6 +825,84 @@ Window {
                         text: qsTr("支持与文档")
                         iconSource: "qrc:/TCV3/res/icon/github-line.png"
                         onClicked: bridge.openSupportUrl()
+                    }
+                    // 固件升级：升级期间禁用，避免重复触发
+                    ActionButton {
+                        text: bridge.otaRunning ? qsTr("升级中…") : qsTr("升级固件")
+                        iconSource: "qrc:/TCV3/res/icon/warning_line.png"
+                        enabled: !bridge.otaRunning
+                        opacity: enabled ? 1.0 : 0.5
+                        onClicked: bridge.chooseFirmwareAndUpgrade()
+                    }
+                }
+
+                // ---- 固件升级进度 ----
+                // 只在升级过程中出现，避免长期占据页面空间
+                Rectangle {
+                    id: otaPanel
+                    anchors.top: parent.top; anchors.topMargin: 244
+                    anchors.left: parent.left; anchors.right: parent.right
+                    height: 72; radius: 10
+                    color: theme.bgPanel
+                    visible: bridge.otaRunning
+                         || (bridge.otaStatusText.length > 0 && bridge.otaPercent > 0)
+
+                    Text {
+                        id: otaTitle
+                        anchors.left: parent.left; anchors.leftMargin: 16
+                        anchors.top: parent.top; anchors.topMargin: 12
+                        text: qsTr("固件升级")
+                        color: theme.textPrimary; font.pixelSize: 13
+                    }
+                    Text {
+                        anchors.right: parent.right; anchors.rightMargin: 16
+                        anchors.top: parent.top; anchors.topMargin: 12
+                        text: bridge.otaPercent + "%"
+                        color: bridge.otaPercent === 100 ? theme.accent : theme.textSecondary
+                        font.pixelSize: 13; font.bold: true
+                    }
+
+                    // 阶段说明（含失败原因）
+                    Text {
+                        anchors.left: parent.left; anchors.leftMargin: 16
+                        anchors.right: parent.right; anchors.rightMargin: 16
+                        anchors.top: otaTitle.bottom; anchors.topMargin: 6
+                        text: bridge.otaStatusText
+                        color: bridge.otaStatusText.indexOf(qsTr("失败")) >= 0
+                               ? theme.danger : theme.textTertiary
+                        font.pixelSize: 11
+                        elide: Text.ElideRight
+                    }
+
+                    // 进度条
+                    Rectangle {
+                        anchors.left: parent.left; anchors.leftMargin: 16
+                        anchors.right: parent.right; anchors.rightMargin: 16
+                        anchors.bottom: parent.bottom; anchors.bottomMargin: 12
+                        height: 6; radius: 3
+                        color: theme.border
+
+                        Rectangle {
+                            width: parent.width * Math.max(0, Math.min(100, bridge.otaPercent)) / 100
+                            height: parent.height; radius: 3
+                            color: theme.accent
+                            Behavior on width { NumberAnimation { duration: 120 } }
+                        }
+                    }
+
+                    // 取消按钮：仅在升级进行中可用
+                    MouseArea {
+                        anchors.right: parent.right; anchors.rightMargin: 62
+                        anchors.top: parent.top; anchors.topMargin: 8
+                        width: 52; height: 20
+                        visible: bridge.otaRunning
+                        cursorShape: Qt.PointingHandCursor
+                        Text {
+                            anchors.centerIn: parent
+                            text: qsTr("取消")
+                            color: theme.danger; font.pixelSize: 11
+                        }
+                        onClicked: bridge.cancelFirmwareUpgrade()
                     }
                 }
             }

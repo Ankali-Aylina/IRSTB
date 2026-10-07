@@ -1,6 +1,7 @@
 #include "BLEThread.h"
 #include <QDebug>
 #include <QEventLoop>
+#include <cstdio>
 
 // ============================================================================
 // 静态回调 — 通过 userData 路由到 BLEThread 实例
@@ -54,6 +55,7 @@ void BLEThread::onFirstConnResult(const wchar_t* address, int connected, const w
 
 	if (connected)
 	{
+		self->m_disconnectReported.store(false, std::memory_order_release);
 		self->emit logMessage(QString::fromUtf8("连接成功！"), LogManagement::LOG_INFO);
 		self->emit connected();
 	}
@@ -65,11 +67,138 @@ void BLEThread::onFirstConnResult(const wchar_t* address, int connected, const w
 	}
 }
 
+void BLEThread::onNotifyReceived(const wchar_t* serviceUuid, const wchar_t* characteristicUuid,
+	const uint8_t* data, uint32_t dataLen, void* userData)
+{
+	// 出口参数未使用（回调签名由 DLL 约定固定，不能省略）
+	Q_UNUSED(serviceUuid);
+	Q_UNUSED(characteristicUuid);
+
+	auto* self = static_cast<BLEThread*>(userData);
+	if (!self || !data || dataLen == 0) return;
+
+	// 回调运行在 DLL 的 BLE 事件线程：只做字节拷贝后交给 Qt 排队处理，
+	// 不在此处触碰任何 Qt/成员状态
+	self->onDeviceStatusReport(QByteArray(reinterpret_cast<const char*>(data), static_cast<int>(dataLen)));
+}
+
+void BLEThread::onDeviceStatusReport(const QByteArray& payload)
+{
+	// BLE 通知的边界与下位机的发送边界并不对应：一行回传可能被拆成多条通知到货
+	// （实测 "OK.180\n" 会分成 "OK" 与 ".180\n"），因此必须先按行切分再解析
+	m_notifyBuffer.append(payload);
+
+	// 原始字节记录：出现异常回传时是唯一的定位依据
+	emit logMessage(QString::fromUtf8("下位机回传原始数据(%1 字节): %2")
+		.arg(payload.size())
+		.arg(QString::fromLatin1(payload.toHex(' '))),
+		LogManagement::LogLevel::LOG_DEBUG);
+
+	while (true)
+	{
+		const int idx = m_notifyBuffer.indexOf('\n');
+
+		// 没有换行：可能仍在半行中，等待后续通知
+		if (idx < 0)
+		{
+			// 防御：非法/超长数据不应无限堆积
+			if (m_notifyBuffer.size() > 64) m_notifyBuffer.clear();
+			return;
+		}
+
+		const QByteArray frame = m_notifyBuffer.left(idx);
+		m_notifyBuffer.remove(0, idx + 1);
+
+		// 解析一行回传（格式见 tools/README.md）："OK.<秒数>" / "WAIT" / "FIN" / "CAN"
+		const QString line = QString::fromLatin1(frame).trimmed();
+		if (line.isEmpty()) continue;
+
+		// 收到任何回传都说明链路是通的，允许下一次真正掉线时重新提示
+		m_disconnectReported.store(false, std::memory_order_release);
+
+		// OTA 升级进行中：所有回传都交给升级状态机解析
+		// （此时串口里流动的是数据帧应答 "A.<序号>" / "E.<序号>"，以及
+		//   "OTAOK"/"OTAFAIL" 这类控制应答，与散热事件流无关）
+		if (m_otaActive)
+		{
+			emit otaResponseLine(line);
+			continue;
+		}
+
+		int remainingSeconds = 0;
+		bool finished = false;
+		QString text;
+		LogManagement::LogLevel level = LogManagement::LOG_INFO;
+
+		if (line.startsWith(QStringLiteral("OK")))
+		{
+			// "OK.180"：秒数由下位机自报，用于核对上位机设置与实际生效是否一致
+			const int dot = line.indexOf(QLatin1Char('.'));
+			if (dot > 0) remainingSeconds = line.mid(dot + 1).toInt();
+			text = remainingSeconds > 0
+				? QString::fromUtf8("下位机确认散热开始：自报 %1 秒").arg(remainingSeconds)
+				: QString::fromUtf8("下位机确认散热开始");
+			// 中途若断连就收不到 FIN：按自报秒数兜底，避免上位机一直以为还在散热
+			if (remainingSeconds > 0) scheduleShutdownFinishedCheck(remainingSeconds);
+		}
+		else if (line.startsWith(QStringLiteral("TO")))
+		{
+			// "TO.<已解析位数>.<已过秒数>"：下位机接收超时（1 秒内没等到完整帧）
+			text = QString::fromUtf8("下位机接收超时，指令被丢弃（诊断 %1）").arg(line.mid(2));
+			level = LogManagement::LOG_WARNING;
+			m_shutdownActive.store(false, std::memory_order_release);
+			scheduleShutdownRetry();
+		}
+		else if (line.startsWith(QStringLiteral("WAIT")))
+		{
+			text = QString::fromUtf8("下位机拒绝了指令（帧格式非法或时长超限），将自动重发一次");
+			level = LogManagement::LOG_WARNING;
+			// 指令实际未生效：清掉本地标志，避免上位机此后不再下发温度调速帧
+			m_shutdownActive.store(false, std::memory_order_release);
+			scheduleShutdownRetry();
+		}
+		else if (line.startsWith(QStringLiteral("FIN")))
+		{
+			text = QString::fromUtf8("下位机报告：关机散热结束，风扇已断电，正在切回自动模式");
+			m_shutdownActive.store(false, std::memory_order_release);
+			finished = true;
+		}
+		else if (line.startsWith(QStringLiteral("CAN")))
+		{
+			text = QString::fromUtf8("下位机报告：关机散热已被取消");
+			m_shutdownActive.store(false, std::memory_order_release);
+			finished = true;
+		}
+		else if (line.startsWith(QLatin1Char(kVersionRespHeader)))
+		{
+			// "V1.3.0.1.1" = 固件版本 1.3.0 + 协议版本 1.1。
+			// 单独处理并直接进入下一行：版本回传不是"指令执行结果"，
+			// 不应出现在散热相关的事件流里
+			handleVersionResponse(line.mid(1));
+			continue;
+		}
+		else
+		{
+			text = QString::fromUtf8("下位机回传（未识别）：%1").arg(line);
+		}
+
+		emit logMessage(text, level);
+		emit deviceStatus(text, remainingSeconds);
+
+		// 散热结束/取消后风扇处于断电状态：先通知界面（可能只是路过提示），
+		// 再自动切回自动模式，让风扇按温度继续工作
+		if (finished)
+		{
+			emit shutdownCoolingFinished();
+			restoreAutoModeAfterShutdown();
+		}
+	}
+}
+
 QString BLEThread::uuidToString(quint16 uuid)
 {
 	return QString::asprintf("%04X", uuid);
 }
-
 QString BLEThread::bleErrorToMessage(BleError err) const
 {
 	const wchar_t* errStr = m_bleFuncs.errorToString
@@ -188,6 +317,9 @@ bool BLEThread::loadBleLibrary()
 		{"BleDisconnect", (void**)&m_bleFuncs.disconnect},
 		{"BleIsConnected", (void**)&m_bleFuncs.isConnected},
 		{"BleWriteCharacteristic", (void**)&m_bleFuncs.writeCharacteristic},
+		{"BleGetLastWriteResult", (void**)&m_bleFuncs.getLastWriteResult},
+		{"BleSubscribeCharacteristic", (void**)&m_bleFuncs.subscribeCharacteristic},
+		{"BleUnsubscribeCharacteristic", (void**)&m_bleFuncs.unsubscribeCharacteristic},
 		{"BleGetLastError", (void**)&m_bleFuncs.getLastError},
 		{"BleErrorToString", (void**)&m_bleFuncs.errorToString}
 	}))
@@ -201,11 +333,27 @@ bool BLEThread::loadBleLibrary()
 		return false;
 	}
 
+	// 订阅接口是后加的（DLL 1.0.0 起）：缺失时只提示，不影响风扇控制
+	if (!m_bleFuncs.subscribeCharacteristic || !m_bleFuncs.unsubscribeCharacteristic)
+	{
+		emit logMessage(QString::fromUtf8("该 BLE DLL 不支持特征通知，将无法接收下位机状态回传"),
+			LogManagement::LogLevel::LOG_WARNING);
+	}
+
+	// 写入结果查询接口（DLL 1.1 起）：缺失时退化为"请求已受理"即视为成功
+	if (!m_bleFuncs.getLastWriteResult)
+	{
+		emit logMessage(QString::fromUtf8("该 BLE DLL 不支持写入结果查询，将无法确认指令是否真的写入"),
+			LogManagement::LogLevel::LOG_DEBUG);
+	}
+
 	return true;
 }
 
 void BLEThread::safeUnloadLibrary()
 {
+	unsubscribeDeviceStatus();
+
 	if (m_connectionId >= 0 && m_bleFuncs.disconnect)
 	{
 		m_bleFuncs.disconnect(m_connectionId);
@@ -258,6 +406,7 @@ void BLEThread::reconnectDevice()
 	{
 		if (m_deviceInfo.isConnected && m_connectionId >= 0)
 		{
+			unsubscribeDeviceStatus();
 			m_bleFuncs.disconnect(m_connectionId);
 			m_connectionId = -1;
 			m_deviceInfo.isConnected = false;
@@ -291,7 +440,9 @@ void BLEThread::updateConnectionStatus()
 	ConnectionStatus();
 	if (!m_deviceInfo.isConnected && wasConnected)
 	{
-		emit disconnected();
+		// 掉线后旧的订阅已失效，复位标志以便重连成功后重新订阅
+		m_notifySubscribed.store(false, std::memory_order_release);
+		reportDisconnectedOnce();
 	}
 }
 
@@ -302,6 +453,10 @@ void BLEThread::updateConnectionStatus()
 void BLEThread::controlFan(char* buff)
 {
 	QMutexLocker lock(&m_fanControlMutex);
+
+	// 关机散热倒计时进行中：下位机会忽略普通模式指令，此处不再发送，
+	// 避免每秒一次的无效 BLE 写入与误报日志
+	if (m_shutdownActive.load(std::memory_order_acquire)) return;
 
 	// 扫描/连接过程中不处理风扇数据：此时 ConnectionStatus() 会误判为断开，
 	// 反复发出"BLE连接断开"与 disconnected()，导致 GUI 状态乱跳
@@ -316,9 +471,23 @@ void BLEThread::controlFan(char* buff)
 	}
 	else
 	{
-		emit logMessage(QString::fromUtf8("BLE连接断开"), LogManagement::LogLevel::LOG_WARNING);
-		emit disconnected();
+		// 温度每 TxDelay 就更新一次，掉线期间会不断走到这里；
+		// 去重后只在掉线的那一刻提示一次
+		reportDisconnectedOnce();
 	}
+}
+
+void BLEThread::reportDisconnectedOnce()
+{
+	// 注意：|| 短路求值确保已上报时不会再次改写标志
+	if (m_disconnectReported.load(std::memory_order_acquire)
+		|| m_disconnectReported.exchange(true, std::memory_order_acq_rel))
+	{
+		return;
+	}
+
+	emit logMessage(QString::fromUtf8("BLE连接断开"), LogManagement::LogLevel::LOG_WARNING);
+	emit disconnected();
 }
 
 void BLEThread::sendFanMode(FanMode mode)
@@ -333,8 +502,16 @@ void BLEThread::autoMode()
 {
 	QMutexLocker lock(&m_modeMutex);
 
-	if (m_connecting.load(std::memory_order_acquire)) return;
-	if (!m_deviceInfo.isFind) return;
+	if (m_connecting.load(std::memory_order_acquire))
+	{
+		emit commandNotSent(QString::fromUtf8("蓝牙正在搜索/连接中，指令未下发，请稍后重试"));
+		return;
+	}
+	if (!m_deviceInfo.isFind)
+	{
+		emit commandNotSent(QString::fromUtf8("尚未找到下位机设备，指令未下发"));
+		return;
+	}
 	ConnectionStatus();
 
 	if (m_deviceInfo.isConnected)
@@ -344,8 +521,9 @@ void BLEThread::autoMode()
 	}
 	else
 	{
-		emit logMessage(QString::fromUtf8("BLE连接断开"), LogManagement::LogLevel::LOG_WARNING);
-		emit disconnected();
+		// 之前这里只写日志（用户看不到），界面表现为"点了没反应"
+		emit commandNotSent(QString::fromUtf8("蓝牙未连接，指令未下发，请点击“重连”后重试"));
+		reportDisconnectedOnce();
 	}
 }
 
@@ -353,8 +531,16 @@ void BLEThread::silentMode()
 {
 	QMutexLocker lock(&m_modeMutex);
 
-	if (m_connecting.load(std::memory_order_acquire)) return;
-	if (!m_deviceInfo.isFind) return;
+	if (m_connecting.load(std::memory_order_acquire))
+	{
+		emit commandNotSent(QString::fromUtf8("蓝牙正在搜索/连接中，指令未下发，请稍后重试"));
+		return;
+	}
+	if (!m_deviceInfo.isFind)
+	{
+		emit commandNotSent(QString::fromUtf8("尚未找到下位机设备，指令未下发"));
+		return;
+	}
 	ConnectionStatus();
 
 	if (m_deviceInfo.isConnected)
@@ -364,8 +550,8 @@ void BLEThread::silentMode()
 	}
 	else
 	{
-		emit logMessage(QString::fromUtf8("BLE连接断开"), LogManagement::LogLevel::LOG_WARNING);
-		emit disconnected();
+		emit commandNotSent(QString::fromUtf8("蓝牙未连接，指令未下发，请点击“重连”后重试"));
+		reportDisconnectedOnce();
 	}
 }
 
@@ -373,8 +559,16 @@ void BLEThread::performanceMode()
 {
 	QMutexLocker lock(&m_modeMutex);
 
-	if (m_connecting.load(std::memory_order_acquire)) return;
-	if (!m_deviceInfo.isFind) return;
+	if (m_connecting.load(std::memory_order_acquire))
+	{
+		emit commandNotSent(QString::fromUtf8("蓝牙正在搜索/连接中，指令未下发，请稍后重试"));
+		return;
+	}
+	if (!m_deviceInfo.isFind)
+	{
+		emit commandNotSent(QString::fromUtf8("尚未找到下位机设备，指令未下发"));
+		return;
+	}
 	ConnectionStatus();
 
 	if (m_deviceInfo.isConnected)
@@ -384,9 +578,304 @@ void BLEThread::performanceMode()
 	}
 	else
 	{
-		emit logMessage(QString::fromUtf8("BLE连接断开"), LogManagement::LogLevel::LOG_WARNING);
-		emit disconnected();
+		emit commandNotSent(QString::fromUtf8("蓝牙未连接，指令未下发，请点击“重连”后重试"));
+		reportDisconnectedOnce();
 	}
+}
+
+// ============================================================================
+// 关机散热
+// ============================================================================
+
+bool BLEThread::sendShutdownFrame(int minutes)
+{
+	// 帧格式 "T<分钟>\n"：ASCII 十进制 + 换行终止符，
+	// 下位机按状态机解析，丢字节或非法字符都会被安全丢弃
+	char buffer[6];
+	int written = snprintf(buffer, sizeof(buffer), "%c%d\n", kShutdownCmdHeader, minutes);
+	if (written <= 0 || written >= static_cast<int>(sizeof(buffer)))
+	{
+		emit logMessage(QString::fromUtf8("关机散热指令组帧失败"), LogManagement::LOG_ERROR);
+		return false;
+	}
+
+	sendData(reinterpret_cast<const unsigned char*>(buffer), static_cast<size_t>(written),
+		LogManagement::LogLevel::LOG_INFO);
+	return true;
+}
+
+void BLEThread::shutdownCooling(int minutes)
+{
+	QMutexLocker lock(&m_modeMutex);
+
+	if (m_connecting.load(std::memory_order_acquire))
+	{
+		emit commandNotSent(QString::fromUtf8("蓝牙正在搜索/连接中，散热指令未下发"));
+		return;
+	}
+	if (!m_deviceInfo.isFind)
+	{
+		emit commandNotSent(QString::fromUtf8("尚未找到下位机设备，散热指令未下发"));
+		return;
+	}
+	ConnectionStatus();
+
+	if (!m_deviceInfo.isConnected)
+	{
+		emit logMessage(QString::fromUtf8("关机散热指令下发失败：BLE连接断开"),
+			LogManagement::LogLevel::LOG_WARNING);
+		emit commandNotSent(QString::fromUtf8("蓝牙未连接，散热指令未下发，请点击“重连”后重试"));
+		emit disconnected();
+		return;
+	}
+
+	// 范围钳制：下位机硬上限为 60 分钟（2 位十进制），越界会被直接丢弃
+	int validMinutes = minutes;
+	if (validMinutes < kMinShutdownMinutes) validMinutes = kMinShutdownMinutes;
+	if (validMinutes > kMaxShutdownMinutes) validMinutes = kMaxShutdownMinutes;
+	if (validMinutes != minutes)
+	{
+		emit logMessage(QString::fromUtf8("关机散热时长 %1 分钟超出范围，已修正为 %2 分钟")
+			.arg(minutes).arg(validMinutes), LogManagement::LogLevel::LOG_WARNING);
+	}
+
+	// 记录本次请求并重置重试额度（新一轮下发允许再重试一次）
+	m_shutdownMinutes.store(validMinutes, std::memory_order_release);
+	m_shutdownRetryUsed = false;
+	m_autoRestoreDone.store(false, std::memory_order_release);
+
+	if (!sendShutdownFrame(validMinutes))
+	{
+		return;
+	}
+
+	m_shutdownActive.store(true, std::memory_order_release);
+	emit logMessage(QString::fromUtf8("已下发关机散热指令：风扇全速运转 %1 分钟后关闭（期间蓝牙断开不影响）")
+		.arg(validMinutes), LogManagement::LogLevel::LOG_INFO);
+}
+
+void BLEThread::notifyShutdownCancelled()
+{
+	if (!m_shutdownActive.exchange(false, std::memory_order_acq_rel)) return;
+
+	// 此刻上位机重新接管风扇控制：真正的取消由紧随其后的模式指令（'0'~'6'）完成，
+	// 下位机接收到模式指令后即恢复正常模式处理，并会回传 CAN
+	emit logMessage(QString::fromUtf8("本地已结束关机散热记录：风扇控制交回上位机"),
+		LogManagement::LogLevel::LOG_INFO);
+}
+
+// ============================================================================
+// 下位机状态通知（特征 Notify 订阅）
+// ============================================================================
+
+void BLEThread::subscribeDeviceStatus()
+{
+	// 旧版 DLL 不导出订阅接口
+	if (!m_bleFuncs.subscribeCharacteristic) return;
+	if (m_connectionId < 0 || !m_deviceInfo.isConnected) return;
+
+	// 回调可能被重复触发，只订阅一次
+	if (m_notifySubscribed.exchange(true, std::memory_order_acq_rel)) return;
+
+	// 丢弃上一次连接遗留的半行数据
+	m_notifyBuffer.clear();
+
+	const QString svcUuid = uuidToString(m_deviceInfo.serviceUuid);
+	const QString charUuid = uuidToString(m_deviceInfo.characteristicUuid);
+	const std::wstring wSvc = svcUuid.toStdWString();
+	const std::wstring wChar = charUuid.toStdWString();
+
+	const BleError result = m_bleFuncs.subscribeCharacteristic(
+		m_connectionId, wSvc.c_str(), wChar.c_str(), onNotifyReceived, this);
+
+	if (result == BLE_OK)
+	{
+		emit logMessage(QString::fromUtf8("已订阅下位机状态通知（%1）").arg(charUuid),
+			LogManagement::LOG_INFO);
+
+		// 订阅就绪后再查版本。刻意延迟 1.5 秒：实测订阅成功后立刻发指令会被丢弃
+		// （连接刚建立时模块/链路尚未稳定），表现为"版本未知"；而连接稳定后
+		// 发出的模式指令都能正常送达。旧固件不会回传，届时靠超时判断。
+		QTimer::singleShot(1500, this, [this]() {
+			if (m_deviceInfo.isConnected && m_connectionId >= 0) {
+				queryDeviceVersion();
+			}
+		});
+	}
+	else
+	{
+		// 失败不致命：风扇控制走写入通道，不依赖通知
+		m_notifySubscribed.store(false, std::memory_order_release);
+		emit logMessage(QString::fromUtf8("订阅下位机状态通知失败：%1（不影响风扇控制）")
+			.arg(bleErrorToMessage(result)), LogManagement::LogLevel::LOG_WARNING);
+	}
+}
+
+void BLEThread::queryDeviceVersion()
+{
+	// 新连接：先清掉上一次的版本信息，避免显示过期数据
+	m_fwVersion.clear();
+	m_fwProtocol.clear();
+	m_fwSupportsShutdown = false;
+
+	// 版本查询帧 "V\n"：下位机（固件 1.3.0+）回传 "V<固件版本>.<协议版本>"。
+	// 用 sendData 走统一通道，发送原始字节与写入结果都会被记录
+	const unsigned char frame[2] = { static_cast<unsigned char>(kVersionQueryChar), '\n' };
+	sendData(frame, sizeof(frame));
+
+	// 旧固件根本不认识 "V\n"，不会有任何回传：等一会儿若仍无版本信息，
+	// 就通知界面"版本未知"，避免界面一直显示"查询中"
+	if (!m_versionTimeoutTimer)
+	{
+		m_versionTimeoutTimer = new QTimer(this);
+		m_versionTimeoutTimer->setSingleShot(true);
+		connect(m_versionTimeoutTimer, &QTimer::timeout, this, [this]() {
+			if (m_fwVersion.isEmpty())
+			{
+				emit logMessage(QString::fromUtf8(
+					"下位机未响应版本查询（固件低于 1.3.0？），固件版本未知"),
+					LogManagement::LogLevel::LOG_WARNING);
+				// 旧固件（<1.3.0）仍支持关机散热（1.2.0 起），按"支持"处理更保守
+				emit firmwareVersionReceived(QString(), QString(), true);
+			}
+		});
+	}
+	m_versionTimeoutTimer->start(kVersionQueryTimeoutMs);
+}
+
+void BLEThread::handleVersionResponse(const QString& payload)
+{
+	// 形如 "1.3.0.1.1"：前三段为固件版本，后两段为协议版本
+	// （旧固件可能只回 "1.3.0"，此时协议版本视为未知）
+	const QStringList parts = payload.split(QLatin1Char('.'), Qt::SkipEmptyParts);
+	if (parts.size() < 3)
+	{
+		emit logMessage(QString::fromUtf8("下位机版本回传格式异常：%1").arg(payload),
+			LogManagement::LogLevel::LOG_WARNING);
+		return;
+	}
+
+	m_fwVersion = QStringLiteral("%1.%2.%3").arg(parts[0], parts[1], parts[2]);
+	m_fwProtocol = parts.size() >= 5
+		? QStringLiteral("%1.%2").arg(parts[3], parts[4])
+		: QString();
+
+	const int major = parts[0].toInt();
+	const int minor = parts[1].toInt();
+
+	// 固件是否支持关机散热：低于 1.2.0 会忽略 T 指令（表现为"点了没反应"）
+	m_fwSupportsShutdown = (major > kMinFwMajorForShutdown)
+		|| (major == kMinFwMajorForShutdown && minor >= kMinFwMinorForShutdown);
+
+	// 收到版本回传：停掉"版本未知"的兜底定时器
+	if (m_versionTimeoutTimer) m_versionTimeoutTimer->stop();
+
+	emit logMessage(QString::fromUtf8("下位机固件版本：%1（协议 %2）")
+		.arg(m_fwVersion, m_fwProtocol.isEmpty() ? QString::fromUtf8("未知") : m_fwProtocol),
+		LogManagement::LOG_INFO);
+
+	if (!m_fwSupportsShutdown)
+	{
+		emit logMessage(QString::fromUtf8(
+			"下位机固件过旧（需 %1.%2.0 及以上），「关机散热」不可用："
+			"下位机会忽略该指令，请先升级下位机固件")
+			.arg(kMinFwMajorForShutdown).arg(kMinFwMinorForShutdown),
+			LogManagement::LogLevel::LOG_WARNING);
+	}
+
+	emit firmwareVersionReceived(m_fwVersion, m_fwProtocol, m_fwSupportsShutdown);
+}
+
+void BLEThread::unsubscribeDeviceStatus()
+{
+	if (!m_notifySubscribed.exchange(false, std::memory_order_acq_rel)) return;
+
+	// 断连后残留的半行数据必须丢弃，否则会与下一次连接的字节拼成错误帧
+	m_notifyBuffer.clear();
+
+	if (!m_bleFuncs.unsubscribeCharacteristic) return;
+	if (m_connectionId < 0) return;
+	const QString svcUuid = uuidToString(m_deviceInfo.serviceUuid);
+	const QString charUuid = uuidToString(m_deviceInfo.characteristicUuid);
+	const std::wstring wSvc = svcUuid.toStdWString();
+	const std::wstring wChar = charUuid.toStdWString();
+
+	(void)m_bleFuncs.unsubscribeCharacteristic(m_connectionId, wSvc.c_str(), wChar.c_str());
+}
+
+void BLEThread::scheduleShutdownRetry()
+{
+	// 同一轮下发只重试一次，避免下位机持续拒绝时反复刷指令
+	if (m_shutdownRetryUsed) return;
+	const int minutes = m_shutdownMinutes.load(std::memory_order_acquire);
+	if (minutes <= 0) return;
+	m_shutdownRetryUsed = true;
+
+	if (!m_shutdownRetryTimer)
+	{
+		m_shutdownRetryTimer = new QTimer(this);
+		m_shutdownRetryTimer->setSingleShot(true);
+		connect(m_shutdownRetryTimer, &QTimer::timeout, this, &BLEThread::retryShutdownCooling);
+	}
+
+	emit logMessage(QString::fromUtf8("将在 600ms 后自动重发关机散热指令"), LogManagement::LOG_INFO);
+	m_shutdownRetryTimer->start(600);
+}
+
+void BLEThread::retryShutdownCooling()
+{
+	const int minutes = m_shutdownMinutes.load(std::memory_order_acquire);
+	if (minutes <= 0) return;
+
+	emit logMessage(QString::fromUtf8("自动重发关机散热指令（%1 分钟）").arg(minutes),
+		LogManagement::LOG_INFO);
+	shutdownCooling(minutes);
+}
+
+void BLEThread::scheduleShutdownFinishedCheck(int seconds)
+{
+	if (!m_shutdownFinishTimer)
+	{
+		m_shutdownFinishTimer = new QTimer(this);
+		m_shutdownFinishTimer->setSingleShot(true);
+		connect(m_shutdownFinishTimer, &QTimer::timeout, this, [this]() {
+			// 只有"仍认为在散热"时才兜底：说明中途断连、FIN 回传丢了
+			if (!m_shutdownActive.exchange(false, std::memory_order_acq_rel)) return;
+
+			emit logMessage(QString::fromUtf8(
+				"按设定时长推断关机散热已结束，但未收到下位机的结束回传（期间可能发生蓝牙断开）"),
+				LogManagement::LogLevel::LOG_WARNING);
+			emit shutdownCoolingFinished();
+		});
+	}
+
+	// 多给 5 秒余量，正常情况下 FIN 会先到并把标志清掉，此定时器随即空转
+	m_shutdownFinishTimer->start((seconds + 5) * 1000);
+}
+
+void BLEThread::restoreAutoModeAfterShutdown()
+{
+	// FIN 与兜底定时器都可能触发，只恢复一次
+	if (m_autoRestoreDone.exchange(true, std::memory_order_acq_rel)) return;
+
+	if (m_connecting.load(std::memory_order_acquire))
+	{
+		emit commandNotSent(QString::fromUtf8(
+			"关机散热已结束，风扇已断电；蓝牙正在重连，请稍后点击风扇模式按钮恢复散热"));
+		return;
+	}
+
+	ConnectionStatus();
+	if (!m_deviceInfo.isConnected)
+	{
+		emit commandNotSent(QString::fromUtf8(
+			"关机散热已结束，风扇已断电；蓝牙未连接，无法自动恢复，请点击“重连”后选择风扇模式"));
+		return;
+	}
+
+	// 与用户点击"自动"走同一条路径：下位机收尾后不锁定，指令会立即生效
+	emit logMessage(QString::fromUtf8("关机散热结束，正在切回自动模式"), LogManagement::LogLevel::LOG_INFO);
+	autoMode();
 }
 
 // ============================================================================
@@ -628,6 +1117,11 @@ bool BLEThread::connectAndWait(const QString& address)
 			emit connectionFailed();
 		}
 	}
+	else
+	{
+		// 连接成功：订阅下位机状态通知（失败只记日志，不影响风扇控制）
+		subscribeDeviceStatus();
+	}
 
 	return result;
 }
@@ -730,7 +1224,7 @@ void BLEThread::ConnectionStatus()
 	}
 }
 
-void BLEThread::sendData(const unsigned char* data, size_t length)
+void BLEThread::sendData(const unsigned char* data, size_t length, LogManagement::LogLevel rawLogLevel)
 {
 	if (!m_deviceInfo.isConnected || m_connectionId < 0)
 	{
@@ -753,11 +1247,440 @@ void BLEThread::sendData(const unsigned char* data, size_t length)
 
 	if (result == BLE_OK)
 	{
+		// 连接恢复正常：允许下一次掉线时重新提示
+		m_disconnectReported.store(false, std::memory_order_release);
+		// 原始字节记录：与"下位机回传原始数据"配对，可完整还原一次握手
+		emit logMessage(QString::fromUtf8("发送原始数据(%1 字节): %2")
+			.arg(static_cast<int>(length))
+			.arg(QString::fromLatin1(QByteArray(reinterpret_cast<const char*>(data),
+				static_cast<int>(length)).toHex(' '))),
+			rawLogLevel);
 		emit logMessage(QString::fromUtf8("发送成功！"), LogManagement::LogLevel::LOG_INFO);
+
+		// 写入是异步的：上面只代表"请求已受理"。若 DLL 支持结果查询，
+		// 稍后核对真实结果，避免"其实没写进去却记成功"
+		if (m_bleFuncs.getLastWriteResult)
+		{
+			if (length == 2 && data[0] >= '0' && data[0] <= '6')
+				m_pendingWriteWhat = QString::fromUtf8("模式指令 %1").arg(QChar(data[0]));
+			else
+				m_pendingWriteWhat = QString::fromUtf8("数据帧");
+			m_pendingWriteIsShutdown = (length > 2 && data[0] == kShutdownCmdHeader);
+
+			if (!m_writeConfirmTimer)
+			{
+				m_writeConfirmTimer = new QTimer(this);
+				m_writeConfirmTimer->setSingleShot(true);
+				connect(m_writeConfirmTimer, &QTimer::timeout, this, &BLEThread::confirmLastWrite);
+			}
+			m_writeConfirmTimer->start(400);
+		}
 	}
 	else
 	{
 		emit logMessage(QString::fromUtf8("BLE写入失败: %1").arg(bleErrorToMessage(result)),
 			LogManagement::LogLevel::LOG_ERROR);
 	}
+}
+
+// ============================================================================
+// OTA 固件升级
+//
+// 流程（与下位机 boot/boot_main.c 的接收循环对应）：
+//   1. 发 "OTA\n"  → 应用置位元数据并复位 → 引导程序接管串口 → 回 "OTAOK"
+//   2. 逐帧发送 0xA5 数据帧，每帧等 "A.<序号>" 应答；超时/收到 "E.<序号>" 则重发
+//   3. 全部发完发 "OTAE\n" → 引导程序做整镜像 CRC32 复核 → 回 "OTAOK"（成功）
+//      或 "OTAFAIL"（失败）
+//
+// 为什么必须逐帧等应答：串口是 9600 baud，蓝牙与串口之间还有模块的缓冲，
+// 无应答地连发会丢帧，而丢帧意味着烧进去的镜像 CRC 必然不匹配。
+// ============================================================================
+
+/// <summary>CRC16-CCITT（多项式 0x1021，初值 0xFFFF）——与下位机 Crc16_Update 一致</summary>
+static uint16_t otaCrc16(const uint8_t* data, int len)
+{
+	uint16_t crc = 0xFFFFu;
+
+	for (int i = 0; i < len; ++i)
+	{
+		crc ^= static_cast<uint16_t>(data[i]) << 8;
+		for (int b = 0; b < 8; ++b)
+		{
+			crc = (crc & 0x8000u) ? static_cast<uint16_t>((crc << 1) ^ 0x1021u)
+			                      : static_cast<uint16_t>(crc << 1);
+		}
+	}
+	return crc;
+}
+
+void BLEThread::otaResetState()
+{
+	if (m_otaAckTimer) m_otaAckTimer->stop();
+	m_otaImage.clear();
+	m_otaSent = 0;
+	m_otaSeq = 0;
+	m_otaRetry = 0;
+	m_otaActive = false;
+	m_otaWaitingAck = false;
+	m_otaFinishing = false;
+}
+
+bool BLEThread::loadFirmwareImage(const QString& filePath, QByteArray& image, QString& error)
+{
+	QFile file(filePath);
+	if (!file.open(QIODevice::ReadOnly))
+	{
+		error = QString::fromUtf8("无法打开固件文件：%1").arg(file.errorString());
+		return false;
+	}
+	const QByteArray raw = file.readAll();
+	file.close();
+
+	if (raw.isEmpty())
+	{
+		error = QString::fromUtf8("固件文件为空");
+		return false;
+	}
+
+	// .bin：直接就是镜像
+	if (!filePath.endsWith(QStringLiteral(".hex"), Qt::CaseInsensitive))
+	{
+		image = raw;
+		return true;
+	}
+
+	// .hex：解析 Intel HEX，取地址连续的最大段（即应用镜像本体）
+	// 记录格式：:LLAAAATT[DD...]CC
+	QMap<quint32, QByteArray> segs;   // 起始地址 → 数据
+	quint32 upper = 0;                // 扩展线性地址
+	bool sawEof = false;
+
+	const QList<QByteArray> lines = raw.split('\n');
+	for (const QByteArray& rawLine : lines)
+	{
+		const QByteArray line = rawLine.trimmed();
+		if (line.isEmpty() || line[0] != ':') continue;
+
+		bool ok = false;
+		const QByteArray body = QByteArray::fromHex(line.mid(1));
+		if (body.size() < 5) { error = QString::fromUtf8("HEX 记录过短"); return false; }
+
+		const quint8 len = static_cast<quint8>(body[0]);
+		const quint16 addr = static_cast<quint16>((static_cast<quint8>(body[1]) << 8) |
+		                                          static_cast<quint8>(body[2]));
+		const quint8 type = static_cast<quint8>(body[3]);
+		if (body.size() < 5 + len) { error = QString::fromUtf8("HEX 记录长度不符"); return false; }
+
+		if (type == 0x00)                       // 数据
+		{
+			segs[upper + addr] = body.mid(4, len);
+		}
+		else if (type == 0x04)                  // 扩展线性地址
+		{
+			upper = (static_cast<quint32>(static_cast<quint8>(body[4])) << 24) |
+			        (static_cast<quint32>(static_cast<quint8>(body[5])) << 16);
+		}
+		else if (type == 0x01)                  // 文件结束
+		{
+			sawEof = true;
+			break;
+		}
+	}
+
+	if (segs.isEmpty())
+	{
+		error = QString::fromUtf8("HEX 文件里没有数据记录");
+		return false;
+	}
+	(void)sawEof;
+
+	// 只保留从最低地址开始连续的那一段：应用镜像在 Flash 中是连续的，
+	// 而 HEX 里可能还夹带别的段（如配置区），拼接起来会破坏镜像
+	quint32 start = segs.firstKey();
+	QByteArray out;
+	quint32 expect = start;
+	for (auto it = segs.constBegin(); it != segs.constEnd(); ++it)
+	{
+		if (it.key() != expect) break;          // 出现空洞：到此为止
+		out += it.value();
+		expect = it.key() + static_cast<quint32>(it.value().size());
+	}
+
+	if (out.isEmpty())
+	{
+		error = QString::fromUtf8("HEX 解析结果为空");
+		return false;
+	}
+	image = out;
+	return true;
+}
+
+void BLEThread::startFirmwareUpgrade(const QString& filePath)
+{
+	if (m_otaActive)
+	{
+		emit otaFailed(QString::fromUtf8("已有升级正在进行"));
+		return;
+	}
+	if (m_connectionId < 0 || !m_deviceInfo.isConnected)
+	{
+		emit otaFailed(QString::fromUtf8("蓝牙未连接，无法升级"));
+		return;
+	}
+
+	QByteArray image;
+	QString error;
+	if (!loadFirmwareImage(filePath, image, error))
+	{
+		emit otaFailed(error);
+		return;
+	}
+	// 槽位容量 20KB（见下位机 memory_map.h 的 SLOT_SIZE）
+	if (image.size() > 20 * 1024)
+	{
+		emit otaFailed(QString::fromUtf8("固件过大：%1 字节，超出下位机 20KB 槽位")
+			.arg(image.size()));
+		return;
+	}
+
+	otaResetState();
+	m_otaImage = image;
+	m_otaActive = true;
+
+	// 升级期间不要再下发温度调速/散热指令，避免与数据帧抢串口
+	m_shutdownActive.store(true, std::memory_order_release);
+
+	emit logMessage(QString::fromUtf8("开始固件升级：%1（%2 字节）")
+		.arg(QFileInfo(filePath).fileName()).arg(m_otaImage.size()),
+		LogManagement::LOG_INFO);
+	emit otaStateChanged(QString::fromUtf8("正在请求下位机进入升级模式…"));
+	emit otaProgress(0, m_otaImage.size());
+
+	if (!m_otaAckTimer)
+	{
+		m_otaAckTimer = new QTimer(this);
+		m_otaAckTimer->setSingleShot(true);
+		connect(m_otaAckTimer, &QTimer::timeout, this, [this]() {
+			if (!m_otaActive) return;
+			// 帧应答超时：重发当前帧
+			if (m_otaWaitingAck)
+			{
+				if (++m_otaRetry > kOtaMaxRetry)
+				{
+					otaAbort(QString::fromUtf8("下位机连续 %1 次未应答，升级中止")
+						.arg(kOtaMaxRetry));
+					return;
+				}
+				emit logMessage(QString::fromUtf8("第 %1 帧应答超时，重发（第 %2 次）")
+					.arg(m_otaSeq).arg(m_otaRetry), LogManagement::LOG_WARNING);
+				m_otaWaitingAck = false;
+				otaSendNextChunk();
+				return;
+			}
+			// 等待"进入升级模式"的应答超时
+			otaAbort(QString::fromUtf8("下位机未进入升级模式（未收到应答）"));
+		});
+	}
+
+	// 把状态机接到应答行上（只接一次）
+	static bool wired = false;
+	if (!wired)
+	{
+		connect(this, &BLEThread::otaResponseLine, this, &BLEThread::handleOtaResponse);
+		wired = true;
+	}
+
+	// 发进入指令；应用会回 "OTAOK" 然后复位，引导程序随后回一次 "OTAOK"
+	const QByteArray cmd(kOtaEnterCmd);
+	sendData(reinterpret_cast<const unsigned char*>(cmd.constData()),
+		static_cast<size_t>(cmd.size()));
+	m_otaAckTimer->start(kOtaAckTimeoutMs * 4);   // 复位+引导程序启动需要更久
+}
+
+void BLEThread::otaSendNextChunk()
+{
+	if (!m_otaActive || m_otaWaitingAck) return;
+
+	const qint64 remain = m_otaImage.size() - m_otaSent;
+	if (remain <= 0)
+	{
+		otaRequestFinish();
+		return;
+	}
+
+	const int take = static_cast<int>(qMin<qint64>(remain, kOtaChunkMax));
+	QByteArray frame;
+	frame.reserve(kOtaFrameOverhead + take);
+	frame.append(static_cast<char>(kOtaFrameSync));
+	frame.append(static_cast<char>(m_otaSeq));
+	frame.append(static_cast<char>(take & 0xFF));
+	frame.append(static_cast<char>((take >> 8) & 0xFF));
+	frame.append(m_otaImage.constData() + m_otaSent, take);
+
+	// CRC16 覆盖"序号 + 长度 + 负载"，与下位机一致
+	const uint16_t crc = otaCrc16(reinterpret_cast<const uint8_t*>(frame.constData()) + 1,
+		frame.size() - 1);
+	frame.append(static_cast<char>(crc & 0xFF));
+	frame.append(static_cast<char>((crc >> 8) & 0xFF));
+
+	sendData(reinterpret_cast<const unsigned char*>(frame.constData()),
+		static_cast<size_t>(frame.size()));
+
+	m_otaWaitingAck = true;
+	m_otaAckTimer->start(kOtaAckTimeoutMs);
+}
+
+void BLEThread::handleOtaResponse(const QString& line)
+{
+	if (!m_otaActive) return;
+
+	// "OTAOK"：进入升级模式应答，或最终激活成功的应答
+	if (line.startsWith(QLatin1String(kOtaRespOk)))
+	{
+		if (m_otaFinishing)
+		{
+			// 引导程序已完成整镜像校验并写元数据，即将复位激活
+			const qint64 total = m_otaImage.size();
+			otaResetState();
+			m_shutdownActive.store(false, std::memory_order_release);
+			emit otaProgress(total, total);
+			emit otaStateChanged(QString::fromUtf8("校验通过，下位机正在激活新固件…"));
+			emit logMessage(QString::fromUtf8("固件升级成功，下位机将复位并运行新固件"),
+				LogManagement::LOG_INFO);
+			emit otaFinished();
+			return;
+		}
+		// 就绪：开始传数据
+		m_otaAckTimer->stop();
+		emit otaStateChanged(QString::fromUtf8("已进入升级模式，正在传输固件…"));
+		emit logMessage(QString::fromUtf8("下位机已进入升级模式，开始传输"),
+			LogManagement::LOG_INFO);
+		otaSendNextChunk();
+		return;
+	}
+
+	if (line.startsWith(QLatin1String(kOtaRespFail)))
+	{
+		otaAbort(m_otaFinishing
+			? QString::fromUtf8("下位机校验失败（镜像可能不完整，请重试）")
+			: QString::fromUtf8("下位机拒绝进入升级模式"));
+		return;
+	}
+
+	// 数据帧应答："A.<序号>" / "E.<序号>"
+	if (line.size() >= 2)
+	{
+		const QChar kind = line.at(0);
+		const int ackSeq = line.mid(2).toInt(nullptr, 16);
+
+		if (kind == QLatin1Char(kOtaAckOk))
+		{
+			if (!m_otaWaitingAck) return;       // 重复应答，忽略
+			m_otaAckTimer->stop();
+			m_otaWaitingAck = false;
+			m_otaRetry = 0;
+			m_otaSent += qMin<qint64>(kOtaChunkMax, m_otaImage.size() - m_otaSent);
+			m_otaSeq++;
+			emit otaProgress(m_otaSent, m_otaImage.size());
+			otaSendNextChunk();
+			return;
+		}
+		if (kind == QLatin1Char(kOtaAckFail))
+		{
+			// 下位机校验/写失败，要求重发该帧
+			if (++m_otaRetry > kOtaMaxRetry)
+			{
+				otaAbort(QString::fromUtf8("第 %1 帧反复写入失败，升级中止").arg(ackSeq));
+				return;
+			}
+			m_otaAckTimer->stop();
+			m_otaWaitingAck = false;
+			otaSendNextChunk();
+			return;
+		}
+	}
+
+	// 其他回传（如散热状态）在升级期间忽略
+}
+
+void BLEThread::otaRequestFinish()
+{
+	if (m_otaFinishing) return;
+	m_otaFinishing = true;
+	emit otaStateChanged(QString::fromUtf8("传输完成，等待下位机校验…"));
+
+	const QByteArray cmd(kOtaEndCmd);
+	sendData(reinterpret_cast<const unsigned char*>(cmd.constData()),
+		static_cast<size_t>(cmd.size()));
+	m_otaAckTimer->start(kOtaAckTimeoutMs * 10);   // 整镜像 CRC 校验需要时间
+}
+
+void BLEThread::otaAbort(const QString& reason)
+{
+	otaResetState();
+	m_shutdownActive.store(false, std::memory_order_release);
+	emit logMessage(QString::fromUtf8("固件升级失败：%1").arg(reason),
+		LogManagement::LOG_ERROR);
+	emit otaFailed(reason);
+}
+
+void BLEThread::cancelFirmwareUpgrade()
+{
+	if (!m_otaActive) return;
+
+	// 尽量告知下位机放弃（它收到后会复位回原应用）
+	const QByteArray cmd(kOtaQuitCmd);
+	sendData(reinterpret_cast<const unsigned char*>(cmd.constData()),
+		static_cast<size_t>(cmd.size()));
+
+	otaResetState();
+	m_shutdownActive.store(false, std::memory_order_release);
+	emit otaStateChanged(QString::fromUtf8("已取消升级"));
+	emit logMessage(QString::fromUtf8("用户取消了固件升级"), LogManagement::LOG_WARNING);
+	emit otaFailed(QString::fromUtf8("已取消"));
+}
+
+void BLEThread::confirmLastWrite()
+{
+	// 旧版 DLL 没有这个接口，或没有待确认的写入
+	if (!m_bleFuncs.getLastWriteResult || m_pendingWriteWhat.isEmpty()) return;
+
+	const QString what = m_pendingWriteWhat;
+	const bool wasShutdown = m_pendingWriteIsShutdown;
+	m_pendingWriteWhat.clear();
+	m_pendingWriteIsShutdown = false;
+
+	// 连接可能在这 400ms 内断掉
+	if (m_connectionId < 0 || !m_deviceInfo.isConnected)
+	{
+		emit logMessage(QString::fromUtf8("%1 未能确认：连接已断开").arg(what),
+			LogManagement::LogLevel::LOG_WARNING);
+		if (wasShutdown) scheduleShutdownRetry();
+		return;
+	}
+
+	const QString charUuid = uuidToString(m_deviceInfo.characteristicUuid);
+	const std::wstring wChar = charUuid.toStdWString();
+	const BleError res = m_bleFuncs.getLastWriteResult(m_connectionId, wChar.c_str());
+
+	if (res == BLE_OK)
+	{
+		emit logMessage(QString::fromUtf8("%1 写入已确认成功").arg(what),
+			LogManagement::LogLevel::LOG_DEBUG);
+		return;
+	}
+
+	// 仍是 PENDING：异步写入还没出结果，属于正常情况，不当作失败
+	if (res == BLE_WRITE_PENDING)
+	{
+		emit logMessage(QString::fromUtf8("%1 写入结果尚未返回（异步进行中）").arg(what),
+			LogManagement::LogLevel::LOG_DEBUG);
+		return;
+	}
+
+	emit logMessage(QString::fromUtf8("%1 写入失败：%2").arg(what, bleErrorToMessage(res)),
+		LogManagement::LogLevel::LOG_ERROR);
+
+	// 关机散热帧没真的写进去：效果等同于下位机没收到，走同一条自动重发逻辑
+	if (wasShutdown) scheduleShutdownRetry();
 }

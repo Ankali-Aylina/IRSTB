@@ -4,7 +4,9 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QHash>
 #include <QStandardPaths>
+#include <QTextStream>
 #include <QThread>
 #include <QDebug>
 #include <windows.h>
@@ -42,6 +44,43 @@ static QString s_extractDir;
 // 前置声明：实现位于文件末尾（extract() 中调用）
 static bool verifyExtractedFiles();
 
+/// <summary>资源清单路径：记录每个已提取文件的文件名与大小，作为"内容指纹"。
+/// 只用应用版本号做缓存判据是不够的——同一个版本号下重新构建、替换了某个 DLL 时
+/// 版本号不变，旧文件会被误判为"无需更新"（实际踩过：换了新版 BLE DLL 却没生效）</summary>
+static QString manifestPath() { return s_extractDir + "/.manifest"; }
+
+/// <summary>读取清单为 "文件名|大小" 的映射</summary>
+static QHash<QString, qint64> readManifest()
+{
+    QHash<QString, qint64> map;
+    QFile f(manifestPath());
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return map;
+
+    while (!f.atEnd()) {
+        const QString line = QString::fromUtf8(f.readLine()).trimmed();
+        if (line.isEmpty()) continue;
+        const int sep = line.lastIndexOf(QLatin1Char('|'));
+        if (sep <= 0) continue;
+        bool ok = false;
+        const qint64 size = line.mid(sep + 1).toLongLong(&ok);
+        if (ok) map.insert(line.left(sep), size);
+    }
+    return map;
+}
+
+/// <summary>写入清单（提取/校验通过后调用）</summary>
+static void writeManifest()
+{
+    QFile f(manifestPath());
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) return;
+
+    QTextStream out(&f);
+    for (const auto& entry : kEntries) {
+        QFileInfo fi(s_extractDir + "/" + entry.diskName);
+        out << entry.diskName << '|' << fi.size() << '\n';
+    }
+}
+
 QString ResourceExtractor::extract()
 {
     // 使用 app 名称 + 版本构建唯一的资源目录。
@@ -56,36 +95,60 @@ QString ResourceExtractor::extract()
     QString versionMarker = s_extractDir + "/.version";
     QString currentVersion = QCoreApplication::applicationVersion();
 
+    // 版本不匹配说明它是上一次发布留下的目录：必须整体重新提取。
+    // 不能只依赖下面"大小一致就跳过"的增量判据——QRC 内文件是压缩存储的，
+    // QFileInfo(qrcPath).size() 对它们返回的是压缩后大小，无法与磁盘上的
+    // 解压文件比较；靠它判断会出现"版本已更新但旧 DLL 被保留"的问题
+    bool versionChanged = true;
+
     QFile markerFile(versionMarker);
     if (markerFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QString cachedVersion = QString::fromUtf8(markerFile.readAll()).trimmed();
-        if (cachedVersion == currentVersion) {
-            // 版本匹配，还需验证所有预期文件是否存在（防止新增文件未提取）
-            bool allExist = true;
+        versionChanged = (cachedVersion != currentVersion);
+        if (!versionChanged) {
+            // 版本号相同：还要确认"每个文件都在，且大小与上次提取的清单一致"。
+            // 清单缺失（例如旧版本程序留下的目录）按"需要重新提取"处理
+            const QHash<QString, qint64> manifest = readManifest();
+            bool allMatch = !manifest.isEmpty();
             for (const auto& entry : kEntries) {
-                QFileInfo destInfo(s_extractDir + "/" + entry.diskName);
+                if (!allMatch) break;
+
+                const QString destPath = s_extractDir + "/" + entry.diskName;
+                QFileInfo destInfo(destPath);
                 if (!destInfo.exists()) {
                     qDebug() << "ResourceExtractor: missing file" << entry.diskName << ", re-extracting...";
-                    allExist = false;
+                    allMatch = false;
+                    break;
+                }
+                const auto it = manifest.constFind(QString::fromLatin1(entry.diskName));
+                if (it == manifest.constEnd() || it.value() != destInfo.size()) {
+                    qDebug() << "ResourceExtractor: changed file" << entry.diskName << ", re-extracting...";
+                    allMatch = false;
                     break;
                 }
             }
-            if (allExist) {
-                // 快速路径：文件齐全，但仍需校验签名——防止目录被预占位/替换
+            if (allMatch) {
+                // 快速路径：文件齐全且内容未变，但仍需校验签名——防止目录被预占位/替换
                 if (!verifyExtractedFiles()) {
                     return {};
                 }
                 SetDllDirectoryW(reinterpret_cast<LPCWSTR>(s_extractDir.utf16()));
                 return s_extractDir;
             }
-            // 有文件缺失，继续执行提取（不清空目录，走增量提取分支）
+            // 有文件缺失/变化：继续执行提取（不清空目录，走增量提取分支）
         }
         markerFile.close();
     }
 
-    // 创建或清空目标目录
+    // 创建目标目录；版本变化时先清空，确保不会残留旧版本的文件
     QDir extractDir(s_extractDir);
     if (!extractDir.exists()) {
+        if (!QDir().mkpath(s_extractDir)) {
+            return {};
+        }
+    } else if (versionChanged) {
+        qDebug() << "ResourceExtractor: version changed, clearing" << s_extractDir;
+        extractDir.removeRecursively();
         if (!QDir().mkpath(s_extractDir)) {
             return {};
         }
@@ -95,11 +158,10 @@ QString ResourceExtractor::extract()
     for (const auto& entry : kEntries) {
         QString destPath = s_extractDir + "/" + entry.diskName;
 
-        // 跳过已存在且大小一致的文件（增量提取）
+        // 增量提取：仅当"版本未变"且文件已存在时才跳过。
+        // 版本变化时一律覆盖，避免旧 DLL 被留下来
         QFileInfo destInfo(destPath);
-        QFileInfo qrcInfo(entry.qrcPath);
-        // QRC 文件大小可能在某些环境下返回 0，此时强制重新提取
-        if (destInfo.exists() && qrcInfo.size() > 0 && destInfo.size() == qrcInfo.size()) {
+        if (!versionChanged && destInfo.exists()) {
             continue;
         }
 
@@ -135,6 +197,9 @@ QString ResourceExtractor::extract()
     if (!verifyExtractedFiles()) {
         return {};
     }
+
+    // 记录本次提取的清单，供下次启动判断内容是否变化
+    writeManifest();
 
     // 写入版本标记
     if (markerFile.open(QIODevice::WriteOnly | QIODevice::Text)) {

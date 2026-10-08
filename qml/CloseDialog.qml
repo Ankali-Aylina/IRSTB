@@ -96,8 +96,14 @@ Dialog {
                 anchors.right: parent.right
                 anchors.rightMargin: 2
                 onClicked: {
+                    // ⚠️ 顺序不能换：Window.window 是「item 所在的窗口」，而 close() 会把弹窗
+                    //    内容从窗口的 overlay 上摘下，之后再读 Window.window 就是 null，
+                    //    于是 hide() 抛 TypeError 被 QML 吞掉 —— 表现为"点了没反应"。
+                    //    所以必须在 close() 之前先把窗口引用取出来。
+                    var host = Window.window
                     closeDialog.close()
-                    Window.window.hide()
+                    if (host)
+                        host.hide()
                 }
 
                 background: Rectangle {

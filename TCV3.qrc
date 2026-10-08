@@ -1,6 +1,26 @@
 <RCC>
     <qresource prefix="/TCV3">
+        <file>qml/qmldir</file>
         <file>qml/main.qml</file>
+        <file>qml/AppTheme.qml</file>
+        <file>qml/AppWindow.qml</file>
+        <file>qml/TitleBar.qml</file>
+        <file>qml/NavigationBar.qml</file>
+        <file>qml/HomePage.qml</file>
+        <file>qml/SettingsPage.qml</file>
+        <file>qml/AboutPage.qml</file>
+        <file>qml/CloseDialog.qml</file>
+        <file>qml/LogDialog.qml</file>
+        <file>qml/EggDialog.qml</file>
+        <file>qml/MenuButton.qml</file>
+        <file>qml/WindowButton.qml</file>
+        <file>qml/ThemeButton.qml</file>
+        <file>qml/IconButton.qml</file>
+        <file>qml/TempCard.qml</file>
+        <file>qml/FanModeButton.qml</file>
+        <file>qml/ThemeIcon.qml</file>
+        <file>qml/ActionButton.qml</file>
+        <file>qml/ToggleSwitch.qml</file>
         <file>res/icon/about_fill.png</file>
         <file>res/icon/about_line.png</file>
         <file>res/icon/close.png</file>
@@ -19,16 +39,11 @@
         <file>res/lib/bin/AMDRyzenMasterDriver.sys</file>
         <file>res/lib/bin/Device.dll</file>
         <file>res/lib/bin/Platform.dll</file>
+        <file>res/icon/warning_line.png</file>
         <file>res/icon/cpuTemp.png</file>
         <file>res/icon/gpuTemp.png</file>
-        <file>res/icon/BLE_Error.png</file>
-        <file>res/icon/BLE_Off.png</file>
         <file>res/icon/BLE_On.png</file>
-        <file>res/icon/cpuTemp-red.png</file>
-        <file>res/icon/gpuTemp-red.png</file>
         <file>res/icon/autoStart.png</file>
-        <file>res/icon/switch-off.png</file>
-        <file>res/icon/switch-on.png</file>
         <file>res/icon/add.png</file>
         <file>res/icon/minus.png</file>
         <file>res/icon/github-line.png</file>

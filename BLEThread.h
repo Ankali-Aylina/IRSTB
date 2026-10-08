@@ -118,6 +118,33 @@ constexpr int kOtaAckTimeoutMs = 1500;
 /// <summary>单帧最大重发次数</summary>
 constexpr int kOtaMaxRetry = 5;
 
+/// <summary>数据帧负载下限。帧太长导致反复被拒时逐级下调（见 m_otaChunk）</summary>
+constexpr int kOtaChunkMin = 20;
+
+/// <summary>引导程序版本回传的帧头，用于判断"复位是否已经完成"。
+/// 下位机两个程序的版本号天然可区分：引导程序回 "V0.1.0"（OTA_BOOT_VERSION_STR），
+/// 应用回 "V1.x.y"（FW_VERSION_STR）。
+/// ⚠️ 若将来引导程序版本升到 1.x，这个判据会失效，必须同步修改
+///    （更稳的做法是让引导程序进 OTA 模式时主动报一次，但那要改下位机）。</summary>
+constexpr char kOtaBootVersionPrefix[] = "V0.";
+
+/// <summary>轮询"引导程序是否就绪"的间隔（毫秒）</summary>
+constexpr int kOtaBootPollIntervalMs = 500;
+
+/// <summary>轮询次数上限（约 500ms × 24 = 12 秒）。复位 + 引导程序启动通常 &lt;1 秒</summary>
+constexpr int kOtaBootPollMax = 24;
+
+/// <summary>升级成功后重新查询下位机版本的延时（毫秒）。
+/// 下位机收到 OTAE 的确认后会复位并运行新固件，留出它启动的时间再查。
+/// ⚠️ 必须重查：BLE 连接由**透传模块**保持，MCU 复位并不会断链，因此不会触发
+///    "连接成功→查询版本"那条路径，界面会一直显示升级前的旧版本号
+///    （否则刷完固件看到的还是老版本，看起来像"没升上去"）。</summary>
+constexpr int kOtaVersionRequeryDelayMs = 2500;
+
+/// <summary>升级后重查版本的最大尝试次数（首次 + 重试一次）。
+/// 第一次可能正好撞上下位机启动过程而丢掉，重试一次更稳</summary>
+constexpr int kOtaVersionRequeryRetries = 1;
+
 // WinRT_BLE_DLL 函数指针类型
 using BleInitializeFunc = int(*)();
 using BleUninitializeFunc = void(*)();
@@ -384,7 +411,26 @@ private:
 	/// <summary>复位升级状态（不发信号）</summary>
 	void otaResetState();
 
+	/// <summary>升级成功后重新查询下位机版本。
+	/// attempt 为已尝试次数：首次查询若在超时后仍拿不到版本，会再试一次
+	/// （下位机刚复位，第一次查询可能撞上它的启动过程而丢失）</summary>
+	void requeryVersionAfterOta(int attempt = 0);
+
 	// 升级状态
+	/// <summary>升级阶段。用它而不是几个 bool 组合，是因为"应用受理 → 复位 →
+	/// 引导程序接管 → 建立会话 → 传输 → 校验"这条链上每一步期待的应答都不同，
+	/// 用布尔量很容易把"应用受理"误当成"引导程序就绪"（这个坑已踩过：
+	/// 应用回 OTAOK 后立刻开始传数据，而那时引导程序还没起来，于是每一帧都被
+	/// 拒收 E.xx，重试 5 次后升级中止）</summary>
+	enum class OtaPhase {
+		Idle,        ///< 未在升级
+		EnterApp,    ///< 已发 OTA\n，等**应用**受理（应用回 OTAOK 后置标志并软复位）
+		WaitBoot,    ///< 应用已受理，等复位完成（轮询 V\n，收到 V0.x 说明引导程序已接管）
+		EnterBoot,   ///< 已向**引导程序**发 OTA\n，等它回 OTAOK（会话建立后才收数据帧）
+		Streaming,   ///< 正在下发数据帧
+		Finishing,   ///< 已发 OTAE\n，等最终校验结果
+	};
+
 	QByteArray m_otaImage;          // 固件镜像
 	qint64 m_otaSent = 0;           // 已确认字节数
 	uint8_t m_otaSeq = 0;           // 帧序号
@@ -392,7 +438,21 @@ private:
 	bool m_otaActive = false;       // 升级流程进行中
 	bool m_otaWaitingAck = false;   // 正在等待某帧应答
 	bool m_otaFinishing = false;    // 已发出结束指令，等待最终应答
+	OtaPhase m_otaPhase = OtaPhase::Idle;
+	/// <summary>当前帧负载长度。初始为 kOtaChunkMax；同一帧反复被拒时逐级下调
+	/// （帧长超过 BLE MTU 时下位机会收到残帧 → CRC 不过 → 回 E.xx）</summary>
+	int m_otaChunk = kOtaChunkMax;
+	/// <summary>最近一帧的实际负载长度，应答确认时按它推进进度（不能用常量算）</summary>
+	int m_otaLastTake = 0;
+	/// <summary>等待引导程序就绪的轮询计数</summary>
+	int m_otaBootPollCount = 0;
 	QTimer* m_otaAckTimer = nullptr;
+	/// <summary>复位等待期的轮询定时器：周期性发 V\n 判断引导程序是否已接管</summary>
+	QTimer* m_otaBootPollTimer = nullptr;
+	/// <summary>otaResponseLine → handleOtaResponse 是否已连接。
+	/// ⚠️ 必须是**实例成员**而不是函数内 static：static 会在第一个实例上置位，
+	/// 之后新建的 BLEThread 实例（模块重建）就再也不会连接，表现为"升级没反应"</summary>
+	bool m_otaWired = false;
 
 	/// <summary>取消订阅（重连/断连/卸载前调用）</summary>
 	void unsubscribeDeviceStatus();

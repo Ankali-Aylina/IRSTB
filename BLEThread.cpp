@@ -1316,6 +1316,7 @@ static uint16_t otaCrc16(const uint8_t* data, int len)
 void BLEThread::otaResetState()
 {
 	if (m_otaAckTimer) m_otaAckTimer->stop();
+	if (m_otaBootPollTimer) m_otaBootPollTimer->stop();
 	m_otaImage.clear();
 	m_otaSent = 0;
 	m_otaSeq = 0;
@@ -1323,6 +1324,10 @@ void BLEThread::otaResetState()
 	m_otaActive = false;
 	m_otaWaitingAck = false;
 	m_otaFinishing = false;
+	m_otaPhase = OtaPhase::Idle;
+	m_otaChunk = kOtaChunkMax;
+	m_otaLastTake = 0;
+	m_otaBootPollCount = 0;
 }
 
 bool BLEThread::loadFirmwareImage(const QString& filePath, QByteArray& image, QString& error)
@@ -1362,6 +1367,7 @@ bool BLEThread::loadFirmwareImage(const QString& filePath, QByteArray& image, QS
 		if (line.isEmpty() || line[0] != ':') continue;
 
 		bool ok = false;
+		(void)ok;
 		const QByteArray body = QByteArray::fromHex(line.mid(1));
 		if (body.size() < 5) { error = QString::fromUtf8("HEX 记录过短"); return false; }
 
@@ -1477,24 +1483,73 @@ void BLEThread::startFirmwareUpgrade(const QString& filePath)
 				otaSendNextChunk();
 				return;
 			}
-			// 等待"进入升级模式"的应答超时
-			otaAbort(QString::fromUtf8("下位机未进入升级模式（未收到应答）"));
+			// 非数据帧阶段的超时：按阶段给出能直接定位的原因
+			switch (m_otaPhase)
+			{
+			case OtaPhase::EnterApp:
+				otaAbort(QString::fromUtf8(
+					"下位机未响应进入升级模式的请求（设备上运行的固件可能不是 OTA 版本）"));
+				break;
+			case OtaPhase::EnterBoot:
+				otaAbort(QString::fromUtf8(
+					"引导程序未响应升级请求（设备可能没有烧录引导程序）"));
+				break;
+			case OtaPhase::Finishing:
+				otaAbort(QString::fromUtf8(
+					"下位机校验超时（镜像可能超出 20KB 槽位，或写 Flash 失败）"));
+				break;
+			default:
+				otaAbort(QString::fromUtf8("下位机未进入升级模式（未收到应答）"));
+				break;
+			}
 		});
 	}
 
-	// 把状态机接到应答行上（只接一次）
-	static bool wired = false;
-	if (!wired)
+	// 复位等待期的轮询：引导程序进 OTA 模式时**不会主动上报任何东西**
+	// （见下位机 BootMain：拿到 SRAM 请求标志后直接进 RunOtaSession 静默等待），
+	// 所以必须靠 V\n 的回传来判断它是否已接管：应用回 "V1.x"，引导程序回 "V0.x"
+	if (!m_otaBootPollTimer)
 	{
-		connect(this, &BLEThread::otaResponseLine, this, &BLEThread::handleOtaResponse);
-		wired = true;
+		m_otaBootPollTimer = new QTimer(this);
+		m_otaBootPollTimer->setInterval(kOtaBootPollIntervalMs);
+		connect(m_otaBootPollTimer, &QTimer::timeout, this, [this]() {
+			if (!m_otaActive || m_otaPhase != OtaPhase::WaitBoot) return;
+
+			if (m_connectionId < 0 || !m_deviceInfo.isConnected)
+			{
+				otaAbort(QString::fromUtf8("升级过程中蓝牙连接断开"));
+				return;
+			}
+			if (++m_otaBootPollCount > kOtaBootPollMax)
+			{
+				otaAbort(QString::fromUtf8("下位机未在 %1 秒内进入升级模式（复位后无响应）")
+					.arg(kOtaBootPollMax * kOtaBootPollIntervalMs / 1000));
+				return;
+			}
+
+			// 只查询版本、不重发 OTA\n：应用还活着时重发会让它再复位一次，
+			// 等于把等待窗口无限往后推
+			const unsigned char frame[2] = { static_cast<unsigned char>(kVersionQueryChar), '\n' };
+			sendData(frame, sizeof(frame));
+		});
 	}
 
-	// 发进入指令；应用会回 "OTAOK" 然后复位，引导程序随后回一次 "OTAOK"
+	// 把状态机接到应答行上（只接一次）。m_otaWired 是**实例成员**：
+	// 用函数内 static 的话，模块重建（新建 BLEThread）后再也不会连接
+	if (!m_otaWired)
+	{
+		connect(this, &BLEThread::otaResponseLine, this, &BLEThread::handleOtaResponse);
+		m_otaWired = true;
+	}
+
+	// 第一步：请**应用**进入升级模式。应用回 "OTAOK" 后置 SRAM 请求标志并软复位，
+	// 随后由引导程序接管 —— 注意引导程序不会主动报"我进来了"，见上面的轮询
 	const QByteArray cmd(kOtaEnterCmd);
 	sendData(reinterpret_cast<const unsigned char*>(cmd.constData()),
 		static_cast<size_t>(cmd.size()));
-	m_otaAckTimer->start(kOtaAckTimeoutMs * 4);   // 复位+引导程序启动需要更久
+
+	m_otaPhase = OtaPhase::EnterApp;
+	m_otaAckTimer->start(kOtaAckTimeoutMs);   // 应用应答复很快；复位等待另走轮询
 }
 
 void BLEThread::otaSendNextChunk()
@@ -1508,7 +1563,7 @@ void BLEThread::otaSendNextChunk()
 		return;
 	}
 
-	const int take = static_cast<int>(qMin<qint64>(remain, kOtaChunkMax));
+	const int take = static_cast<int>(qMin<qint64>(remain, m_otaChunk));
 	QByteArray frame;
 	frame.reserve(kOtaFrameOverhead + take);
 	frame.append(static_cast<char>(kOtaFrameSync));
@@ -1526,6 +1581,7 @@ void BLEThread::otaSendNextChunk()
 	sendData(reinterpret_cast<const unsigned char*>(frame.constData()),
 		static_cast<size_t>(frame.size()));
 
+	m_otaLastTake = take;
 	m_otaWaitingAck = true;
 	m_otaAckTimer->start(kOtaAckTimeoutMs);
 }
@@ -1534,9 +1590,59 @@ void BLEThread::handleOtaResponse(const QString& line)
 {
 	if (!m_otaActive) return;
 
+	// ---- 等复位完成 ----
+	// 引导程序进 OTA 模式时**不主动上报**，只能靠它回 "V0.x" 判断已经接管。
+	// 这一步是关键：应用回 OTAOK 时引导程序还没起来，此时若开始传数据，
+	// 每一帧都会被拒收（引导程序 s_session_on 仍为 0）→ E.xx → 重试耗尽 → 中止
+	if (m_otaPhase == OtaPhase::WaitBoot)
+	{
+		if (line.startsWith(QLatin1String(kOtaBootVersionPrefix)))
+		{
+			m_otaBootPollTimer->stop();
+			emit logMessage(QString::fromUtf8("下位机已进入引导程序（%1），请求建立升级会话")
+				.arg(line), LogManagement::LOG_INFO);
+			emit otaStateChanged(QString::fromUtf8("已进入升级模式，正在建立会话…"));
+
+			const QByteArray cmd(kOtaEnterCmd);
+			sendData(reinterpret_cast<const unsigned char*>(cmd.constData()),
+				static_cast<size_t>(cmd.size()));
+			m_otaPhase = OtaPhase::EnterBoot;
+			m_otaAckTimer->start(kOtaAckTimeoutMs);
+			return;
+		}
+		// 应用还在跑（回 "V1.x"）或复位期间无响应：继续轮询，不做别的
+		return;
+	}
+
 	// "OTAOK"：进入升级模式应答，或最终激活成功的应答
 	if (line.startsWith(QLatin1String(kOtaRespOk)))
 	{
+		if (m_otaPhase == OtaPhase::EnterApp)
+		{
+			// **应用**已受理，它随即置 SRAM 标志并软复位。这里绝不能开始传数据：
+			// 引导程序尚未接管，数据帧会被全部拒收。改为等复位完成
+			m_otaAckTimer->stop();
+			m_otaPhase = OtaPhase::WaitBoot;
+			m_otaBootPollCount = 0;
+			emit otaStateChanged(QString::fromUtf8("下位机正在重启进入升级模式…"));
+			emit logMessage(QString::fromUtf8("应用已受理升级请求，等待其复位后由引导程序接管"),
+				LogManagement::LOG_INFO);
+			m_otaBootPollTimer->start();
+			return;
+		}
+
+		if (m_otaPhase == OtaPhase::EnterBoot)
+		{
+			// **引导程序**的会话已建立，现在才可以下发数据帧
+			m_otaAckTimer->stop();
+			m_otaPhase = OtaPhase::Streaming;
+			emit otaStateChanged(QString::fromUtf8("会话已建立，正在传输固件…"));
+			emit logMessage(QString::fromUtf8("引导程序已就绪，开始传输固件"),
+				LogManagement::LOG_INFO);
+			otaSendNextChunk();
+			return;
+		}
+
 		if (m_otaFinishing)
 		{
 			// 引导程序已完成整镜像校验并写元数据，即将复位激活
@@ -1548,15 +1654,17 @@ void BLEThread::handleOtaResponse(const QString& line)
 			emit logMessage(QString::fromUtf8("固件升级成功，下位机将复位并运行新固件"),
 				LogManagement::LOG_INFO);
 			emit otaFinished();
+
+			// 下位机马上会复位跑新固件。**必须主动重查版本**：BLE 连接由透传模块
+			// 保持，MCU 复位不会断链，因此不会有"连接成功→查询版本"来刷新它，
+			// 否则界面会一直显示升级前的旧版本号
+			QTimer::singleShot(kOtaVersionRequeryDelayMs, this, [this]() {
+				requeryVersionAfterOta(0);
+			});
 			return;
 		}
-		// 就绪：开始传数据
-		m_otaAckTimer->stop();
-		emit otaStateChanged(QString::fromUtf8("已进入升级模式，正在传输固件…"));
-		emit logMessage(QString::fromUtf8("下位机已进入升级模式，开始传输"),
-			LogManagement::LOG_INFO);
-		otaSendNextChunk();
-		return;
+
+		return;   // 其他阶段的 OTAOK 无意义，忽略
 	}
 
 	if (line.startsWith(QLatin1String(kOtaRespFail)))
@@ -1567,7 +1675,9 @@ void BLEThread::handleOtaResponse(const QString& line)
 		return;
 	}
 
-	// 数据帧应答："A.<序号>" / "E.<序号>"
+	// 数据帧应答："A.<序号>" / "E.<序号>"（只在传输阶段有意义）
+	if (m_otaPhase != OtaPhase::Streaming) return;
+
 	if (line.size() >= 2)
 	{
 		const QChar kind = line.at(0);
@@ -1579,7 +1689,8 @@ void BLEThread::handleOtaResponse(const QString& line)
 			m_otaAckTimer->stop();
 			m_otaWaitingAck = false;
 			m_otaRetry = 0;
-			m_otaSent += qMin<qint64>(kOtaChunkMax, m_otaImage.size() - m_otaSent);
+			// 按**实际发出**的长度推进：帧长可能已被下调过，不能用常量算
+			m_otaSent += m_otaLastTake;
 			m_otaSeq++;
 			emit otaProgress(m_otaSent, m_otaImage.size());
 			otaSendNextChunk();
@@ -1592,6 +1703,17 @@ void BLEThread::handleOtaResponse(const QString& line)
 			{
 				otaAbort(QString::fromUtf8("第 %1 帧反复写入失败，升级中止").arg(ackSeq));
 				return;
+			}
+			// 同一帧连续被拒，多半不是数据本身错，而是**帧太长**：超过 BLE MTU 时
+			// 下位机收到的是残帧，CRC 自然不过。把负载减半再试。
+			// 下位机是"按顺序追加写"，帧长中途变化不影响镜像正确性
+			if (m_otaRetry >= 2 && m_otaChunk > kOtaChunkMin)
+			{
+				m_otaChunk = qMax(kOtaChunkMin, m_otaChunk / 2);
+				m_otaRetry = 0;
+				emit logMessage(QString::fromUtf8(
+					"数据帧连续被拒，负载长度下调为 %1 字节（蓝牙 MTU 可能小于帧长）")
+					.arg(m_otaChunk), LogManagement::LOG_WARNING);
 			}
 			m_otaAckTimer->stop();
 			m_otaWaitingAck = false;
@@ -1607,6 +1729,7 @@ void BLEThread::otaRequestFinish()
 {
 	if (m_otaFinishing) return;
 	m_otaFinishing = true;
+	m_otaPhase = OtaPhase::Finishing;
 	emit otaStateChanged(QString::fromUtf8("传输完成，等待下位机校验…"));
 
 	const QByteArray cmd(kOtaEndCmd);
@@ -1628,16 +1751,52 @@ void BLEThread::cancelFirmwareUpgrade()
 {
 	if (!m_otaActive) return;
 
-	// 尽量告知下位机放弃（它收到后会复位回原应用）
+	// 尽量告知下位机放弃（引导程序收到后会跳回原应用）
 	const QByteArray cmd(kOtaQuitCmd);
 	sendData(reinterpret_cast<const unsigned char*>(cmd.constData()),
 		static_cast<size_t>(cmd.size()));
 
+	// ⚠️ 在"等复位"阶段取消时，应用已经把 SRAM 请求标志置上了：OTAQ 现在发出去
+	// 没人接（引导程序还没起来），设备下一拍仍会进引导程序并停在升级模式。
+	// 这不影响设备安全（引导程序不会自己刷写任何东西），但用户需要知道
+	// "下次连上会看到引导程序，可再次升级或再发一次取消"
+	const bool beforeBoot = (m_otaPhase == OtaPhase::WaitBoot);
+
 	otaResetState();
 	m_shutdownActive.store(false, std::memory_order_release);
 	emit otaStateChanged(QString::fromUtf8("已取消升级"));
-	emit logMessage(QString::fromUtf8("用户取消了固件升级"), LogManagement::LOG_WARNING);
+	emit logMessage(beforeBoot
+		? QString::fromUtf8("用户取消了固件升级（应用已受理，设备可能仍会进入升级模式；"
+			"下次连上若是引导程序，可重新升级或再次取消）")
+		: QString::fromUtf8("用户取消了固件升级"),
+		LogManagement::LOG_WARNING);
 	emit otaFailed(QString::fromUtf8("已取消"));
+}
+
+void BLEThread::requeryVersionAfterOta(int attempt)
+{
+	if (!m_deviceInfo.isConnected || m_connectionId < 0)
+	{
+		return;
+	}
+
+	// queryDeviceVersion() 会先清空 m_fwVersion，拿不到就是空的（界面显示"版本未知"）
+	queryDeviceVersion();
+
+	if (attempt >= kOtaVersionRequeryRetries)
+	{
+		return;
+	}
+
+	// 等这次查询的超时窗口过去：仍是空说明这次没问到，再试一次
+	QTimer::singleShot(kVersionQueryTimeoutMs + 500, this, [this, attempt]() {
+		if (m_fwVersion.isEmpty())
+		{
+			emit logMessage(QString::fromUtf8("升级后首次查询固件版本未响应，重试一次"),
+				LogManagement::LogLevel::LOG_WARNING);
+			requeryVersionAfterOta(attempt + 1);
+		}
+	});
 }
 
 void BLEThread::confirmLastWrite()

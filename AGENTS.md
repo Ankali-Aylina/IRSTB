@@ -72,6 +72,28 @@ main.cpp → ApplicationBootstrap::run()
 
 两个模块在 `start()` 中均创建私有 `QThread`，在其中 `moveToThread` 并运行事件循环。
 
+### QML 界面结构（2026-10-08 由单文件拆分为 19 个文件）
+
+`qml/` 按部件拆分，`main.qml` 只负责窗口与主题，界面主体在 `AppWindow.qml`：
+
+| 文件 | 职责 |
+| --- | --- |
+| `main.qml` | `Window`（无边框、透明）+ 主题推导；`onClosing` 转交关闭对话框 |
+| `AppWindow.qml` | 圆角背景、标题栏/导航栏/页面容器、页面淡入淡出切换、三个弹窗实例 |
+| `AppTheme.qml` | **`pragma Singleton`** 主题色板；`isDark` 由 `main.qml` 用 `Binding` 写入 |
+| `TitleBar` / `NavigationBar` | 标题栏（拖动 / 最小化 / 最大化 / 关闭）、顶部导航 |
+| `HomePage` / `SettingsPage` / `AboutPage` | 三个页面 |
+| `CloseDialog` / `LogDialog` / `EggDialog` | 三个弹窗 |
+| `MenuButton` / `WindowButton` / `ThemeButton` / `IconButton` / `ActionButton` | 按钮部件 |
+| `TempCard` / `FanModeButton` / `ThemeIcon` | 温度卡片、风扇模式按钮、可着色图标 |
+
+⚠️ 改 QML 时必守的两条（两者都**不会在运行时明确报错**，只会静默失效）：
+
+1. **新增 `.qml` 必须登记到 `TCV3.qrc`**。界面不是从磁盘读的，而是 `engine.load("qrc:/TCV3/qml/main.qml")` 读内嵌资源；漏登记 = 该文件在 exe 里不存在。同理，QML 里引用的 `qrc:/TCV3/res/...` 图标也必须已登记 —— `warning_line.png` 在 v4.0.0.0 的 QML 迁移中被误删出 QRC，导致 v4.0.0.0~v4.3.0.0 期间引用它的三处图标一直空白（无任何报错）。
+2. **新增单例必须写 `qml/qmldir`**（当前仅一行：`singleton AppTheme 1.0 AppTheme.qml`），且 `qmldir` 自身也要登记进 QRC。同目录隐式导入靠 `qmldir` 解析单例；缺了它单例求值为 `undefined`，所有 `AppTheme.*` 颜色绑定成片失效（表现为满屏 "Unable to assign [undefined] to QColor"）。
+
+QML 文件**不必**加入 `.vcxproj`：`<QtRcc Include="TCV3.qrc" />` 已覆盖。
+
 ## 关键模式
 
 ### 模块系统（2026-06-20 重构）
@@ -186,6 +208,45 @@ BLEThread::ble*               ──→  QmlBridge::setBleUiState（QML 属性 b
 | 旧固件降级 | 固件 < 1.3.0 不会回传。`kVersionQueryTimeoutMs = 2500` 超时后 emit `firmwareVersionReceived("", "", true)`，界面显示"版本未知"。**旧固件仍支持关机散热（1.2.0 起），因此超时时按"支持"处理**，避免误禁用功能 |
 | 最低版本常量 | `kMinFwMajor/MinorForShutdown`（1.2.0）、`kMinFwMajor/MinorForVersionQuery`（1.3.0）；`firmwareSupportsShutdown` 由回传版本比对得出，界面据此标红提示 |
 | 版本来源 | 固件侧：`main.h` 的 `FW_VERSION_*` + `fw_version.h` 的 `FW_PROTOCOL_VERSION_STR`；协议版本只在"上位机需同步适配"时递增 |
+
+### 固件升级（OTA）
+
+上位机只负责"把固件喂给下位机"；写 Flash、校验、激活都由下位机的**常驻引导程序**完成
+（协议见固件仓库 `TCV3/Desktop_Temperature/boot/ota.h`）。逻辑在 `BLEThread`，入口在「关于」页。
+
+**流程（`m_otaPhase` 状态机）**：
+
+```
+EnterApp   发 "OTA\n" → **应用**回 OTAOK，随后置 SRAM 请求标志并软复位
+WaitBoot   轮询 "V\n"，直到收到 V0.x —— 说明复位完成、**引导程序**已接管
+EnterBoot  再发一次 "OTA\n" → **引导程序**回 OTAOK，升级会话建立
+Streaming  分帧下发（A5 + 序号 + 长度 + 负载 + CRC16），逐帧等 "A.<序号>"
+Finishing  发 "OTAE\n" → OTAOK = 校验通过并激活（下位机随后自动复位）
+```
+
+⚠️ **必须发两次 `OTA\n` —— 这是最容易搞错、且症状极具误导性的地方**：应用受理后只是
+"置标志 + 软复位"，引导程序接管时**不会主动上报任何东西**。数据帧在会话建立前会被
+下位机全部拒收（回 `E.<序号>`，因为它的 `s_session_on` 仍为 0）。曾经把应用的第一个
+`OTAOK` 当成"可以开始传了"，于是每一帧都被拒、重试 5 次后中止，看起来像"协议/数据不对"。
+两个程序的版本号天然可区分（引导程序 `V0.x`、应用 `V1.x`），用它判断复位是否完成。
+
+其它要点：
+
+- **逐帧应答**：`A.<两位大写十六进制序号>` = 已写入；`E.<...>` = 要求重发该帧。同一帧连续被拒时
+  自动把负载减半重试（`m_otaChunk`，下限 `kOtaChunkMin`）—— 帧长超过蓝牙 MTU 时下位机收到的是
+  残帧，CRC 自然不过。下位机是"按顺序追加写"，帧长中途变化不影响镜像正确性
+- **升级期间抑制温度调速**：复用 `m_shutdownActive` 让 `controlFan()` 直接返回，避免与数据帧抢串口
+- **完成应答可能被复位吃掉**：下位机发完 `OTAOK` 立刻复位时上位机收不到（实测过一次，被误报成
+  "校验无应答"）。固件侧已改为发完等 `OTA_RESP_FLUSH_MS`(300ms) 再复位；上位机的 `OTAE` 超时仍按真失败处理
+- **取消要看阶段**：进入"等复位"之后再取消，应用已经把请求标志置上了，`OTAQ` 现在发出去没人接 ——
+  设备下一拍仍会进引导程序并停在升级模式（引导程序不会自己刷写任何东西，安全）。要在日志里说明
+- **`m_otaWired` 必须是实例成员**：`otaResponseLine → handleOtaResponse` 的连接曾用函数内 `static bool`
+  只连一次，模块重建后新实例就永远不会连接，表现为"升级没反应"
+- **帧长上限 128（`kOtaChunkMax`）是下位机解析上限，不是链路容量**；`.hex` 会解析 Intel HEX 并
+  只取"从最低地址开始连续"的那一段（应用镜像在 Flash 里是连续的）
+- 固件大小上限 20KB（应用区槽位），超出直接拒绝并提示
+- **实测数据**（16620 字节镜像，Android/PC 端 BT24-T 模块）：128 字节负载全帧通过，
+  130 帧约 **33 秒**完成
 
 ### 错误处理约定
 

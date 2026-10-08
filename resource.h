@@ -5,8 +5,8 @@
 #define IDI_ICON1                       102
 
 // 应用版本号（单一来源，ApplicationBootstrap / .rc / UI 均引用此处）
-#define APP_VERSION_STR                 "4.3.0.0"
-#define APP_VERSION_COMMA               4,3,0,0
+#define APP_VERSION_STR                 "4.4.0.0"
+#define APP_VERSION_COMMA               4,4,0,0
 
 // Next default values for new objects
 // 

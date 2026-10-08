@@ -4,7 +4,7 @@
 ;   2. 用 Inno Setup 打开此文件，点击"编译"即可生成安装包
 
 #define MyAppName     "TemperatureControlV3"
-#define MyAppVersion  "4.3.0.0"
+#define MyAppVersion  "4.4.0.0"
 #define MyAppExeName  "TemperatureControlV3.exe"
 #define MyAppPublisher "Ankali-Aylina"
 #define MyAppSource   "x64\Release"

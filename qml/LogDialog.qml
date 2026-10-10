@@ -62,6 +62,10 @@ Dialog {
         TextArea {
             readOnly: true
             text: bridge.readUpdateLog()
+            // 更新日志是 Markdown 原文（res/updatalog.md 直接读出来），
+            // TextArea 默认按 PlainText 渲染，所以标题/列表/粗体都会连符号一起显示。
+            // 用 MarkdownText 让 Qt 自己渲染（支持标题、列表、引用、行内代码、粗体）。
+            textFormat: TextEdit.MarkdownText
             font.family: "Microsoft YaHei"
             font.pixelSize: 12
             background: Rectangle { color: AppTheme.bgPanel; radius: 6 }

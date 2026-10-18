@@ -6,8 +6,9 @@ Rectangle {
     property string title: ""
     property int temperature: 0
     property int warningThreshold: 80
-    property string normalIcon: ""
-    property string warningIcon: ""
+    // 图标类型："cpu" | "gpu"（原来靠传两张 PNG 路径 + 显示/隐藏切换，
+    // 现在图标是 QML 矢量的 IconChipTemp，同一实例只换描边颜色即可）
+    property string iconKind: "cpu"
     radius: AppTheme.radiusPanel
     color: AppTheme.bgPanel
     readonly property bool warn: temperature > warningThreshold
@@ -32,30 +33,18 @@ Rectangle {
         anchors.topMargin: 14
     }
 
-    ThemeIcon {
-        id: iconImgNormal
-        source: card.normalIcon
-        iconWidth: card.iconSize
-        iconHeight: card.iconSize
-        color: card.warn ? AppTheme.danger : (AppTheme.nasa ? AppTheme.nasaMetalMid : AppTheme.textSecondary)
+    // 温度图标：QML 矢量绘制（替代 cpuTemp.png / gpuTemp.png），
+    // 报警时只换描边色，不再需要「正常/报警两份图标」来回切
+    IconChipTemp {
+        id: cardIcon
+        kind: card.iconKind
+        size: card.iconSize
+        color: card.warn ? AppTheme.danger
+                         : (AppTheme.nasa ? AppTheme.nasaMetalMid : AppTheme.textSecondary)
         anchors.left: parent.left
         anchors.leftMargin: card.iconLeft
         anchors.verticalCenter: parent.verticalCenter
         anchors.verticalCenterOffset: 4
-        visible: !card.warn
-    }
-
-    ThemeIcon {
-        id: iconImgWarn
-        source: card.warningIcon
-        iconWidth: card.iconSize
-        iconHeight: card.iconSize
-        color: AppTheme.danger
-        anchors.left: parent.left
-        anchors.leftMargin: card.iconLeft
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: 4
-        visible: card.warn
     }
 
     Text {

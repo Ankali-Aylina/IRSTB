@@ -29,11 +29,7 @@ Item {
             title: qsTr("CPU 温度")
             temperature: bridge.cpuTemp
             warningThreshold: bridge.warningCpu
-            normalIcon: "qrc:/TCV3/res/icon/cpuTemp.png"
-            // 注意：必须用白色源图，不能用 cpuTemp-red.png —— ThemeIcon 的
-            // MultiEffect 着色是「colorizationColor × 源图亮度」，拿已经是红色的
-            // 源图去着色会得到 #3e0e09 这种暗红褐色，而不是 AppTheme.danger。
-            warningIcon: "qrc:/TCV3/res/icon/cpuTemp.png"
+            iconKind: "cpu"
         }
 
         TempCard {
@@ -42,9 +38,7 @@ Item {
             title: qsTr("GPU 温度")
             temperature: bridge.gpuTemp
             warningThreshold: bridge.warningGpu
-            normalIcon: "qrc:/TCV3/res/icon/gpuTemp.png"
-            // 同上：必须用白色源图，着色由 AppTheme.danger 负责
-            warningIcon: "qrc:/TCV3/res/icon/gpuTemp.png"
+            iconKind: "gpu"
         }
     }
 
@@ -63,20 +57,16 @@ Item {
         // NASA 朋克：四角铆钉（仅 NASA 模式可见）
         NasaRivets { anchors.fill: parent }
 
-        ThemeIcon {
+        // 蓝牙图标：QML 矢量绘制（替代 BLE_On/Off/Error 三个 PNG）。
+        // 原来那三个文件是同一字形、三种颜色，还要靠 ThemeIcon 的 MultiEffect 着色，
+        // 一旦拿带色的源图去着色就会变暗（断开被压成近黑、失败压成暗褐）。
+        // 现在只有一个字形，颜色直接由状态决定。
+        IconBluetooth {
             id: bleIcon
-            iconWidth: 36
-            iconHeight: 36
+            size: 36
             anchors.left: parent.left
             anchors.leftMargin: 16
             anchors.verticalCenter: parent.verticalCenter
-            // BLE_On / BLE_Off / BLE_Error 三个文件其实是同一个蓝牙字形，只是颜色不同
-            // （On=白，Off=猩红，Error=猩红+白）。ThemeIcon 的 MultiEffect 着色是
-            // 「colorizationColor × 源图亮度」，不能拿已经带色的图去着色，否则会变暗：
-            // 用 BLE_Off.png（#dc143c，亮度≈0.26）配 textSecondary 会得到 #202020 近黑，
-            // 用 BLE_Error.png 配 danger 会得到 #621b14 暗褐。统一用白色的 BLE_On.png，
-            // 颜色完全交给下面的 color 决定。
-            source: "qrc:/TCV3/res/icon/BLE_On.png"
             // 状态 2 = 连接中 / 重连中（QmlBridge 对这两种情况都用 BleConnecting），显示天蓝色
             color: bridge.bleState === 3 ? AppTheme.success
                  : bridge.bleState === 4 ? AppTheme.danger

@@ -24,6 +24,8 @@
         <file>qml/NasaRivets.qml</file>
         <file>qml/NasaGrid.qml</file>
         <file>qml/NasaTicks.qml</file>
+        <file>qml/IconChipTemp.qml</file>
+        <file>qml/IconBluetooth.qml</file>
         <file>res/icon/about_fill.png</file>
         <file>res/icon/about_line.png</file>
         <file>res/icon/close.png</file>
@@ -43,9 +45,6 @@
         <file>res/lib/bin/Device.dll</file>
         <file>res/lib/bin/Platform.dll</file>
         <file>res/icon/warning_line.png</file>
-        <file>res/icon/cpuTemp.png</file>
-        <file>res/icon/gpuTemp.png</file>
-        <file>res/icon/BLE_On.png</file>
         <file>res/icon/autoStart.png</file>
         <file>res/icon/add.png</file>
         <file>res/icon/minus.png</file>

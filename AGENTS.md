@@ -85,7 +85,9 @@ main.cpp → ApplicationBootstrap::run()
 | `HomePage` / `SettingsPage` / `AboutPage` | 三个页面 |
 | `CloseDialog` / `LogDialog` / `EggDialog` | 三个弹窗 |
 | `MenuButton` / `WindowButton` / `ThemeButton` / `IconButton` / `ActionButton` | 按钮部件 |
-| `TempCard` / `FanModeButton` / `ThemeIcon` | 温度卡片、风扇模式按钮、可着色图标 |
+| `TempCard` / `FanModeButton` / `ThemeIcon` | 温度卡片、风扇模式按钮、可着色图标（位图，走 `MultiEffect` 着色） |
+| `IconChipTemp` / `IconBluetooth` | **QML 矢量图标**（`QtQuick.Shapes`），CPU/GPU 温度与蓝牙。新增图标优先用这套写法，别再放 PNG |
+| `NasaGrid` / `NasaRivets` / `NasaTicks` | NASA 朋克装饰（蓝图网格 / 四角铆钉 / 刻度条），仅在 `AppTheme.nasa` 时可见 |
 
 ⚠️ 改 QML 时必守的三条（前两条**不会在运行时明确报错**，只会静默失效）：
 

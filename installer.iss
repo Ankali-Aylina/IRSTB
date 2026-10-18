@@ -49,7 +49,11 @@ Source: "{#MyAppSource}\Qt6Quick*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyAppSource}\Qt6OpenGL.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyAppSource}\D3Dcompiler_47.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyAppSource}\opengl32sw.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyAppSource}\qml\*"; DestDir: "{app}\qml"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "qmltooling,QtQuick\Layouts,QtQuick\Shapes,QtQuick\Controls\Fusion,QtQuick\Controls\Imagine,QtQuick\Controls\Material,QtQuick\Controls\Universal,QtQuick\Controls\FluentWinUI3,QtQuick\Controls\Windows"
+Source: "{#MyAppSource}\qml\*"; DestDir: "{app}\qml"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "qmltooling,QtQuick\Layouts,QtQuick\Controls\Fusion,QtQuick\Controls\Imagine,QtQuick\Controls\Material,QtQuick\Controls\Universal,QtQuick\Controls\FluentWinUI3,QtQuick\Controls\Windows"
+; ⚠️ Excludes 里绝不能出现界面真正 import 的模块 —— 少一个不会在打包时报错，
+;    而是装完后界面直接起不来（报 "module ... is not installed"）。
+;    QtQuick\Shapes 曾被排除，导致 v4.5.0.0 安装包无法加载矢量图标（IconChipTemp/IconBluetooth）。
+;    package.ps1 的 [2.5/4] 步骤会拿 QML 的 import 与这份 Excludes 交叉校验，不要手改绕过。
 
 ; Qt 插件目录（platforms 必须包含，否则无法创建窗口）
 Source: "{#MyAppSource}\platforms\*"; DestDir: "{app}\platforms"; Flags: ignoreversion recursesubdirs createallsubdirs

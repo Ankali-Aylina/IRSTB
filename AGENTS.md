@@ -353,6 +353,17 @@ Release 构建下，原生 DLL 和 `bin/` 已全部嵌入 exe 的 QRC 中。发�
 2. 用 Inno Setup 打开 `installer.iss` → 编译 → 输出到 `installer\` 目录
 3. 自动检测 VC Redist，缺失时引导用户下载
 
+⚠️ **`installer.iss` 的 `Excludes` 会裁掉用不到的 QML 模块以缩小安装包，而这份列表是手工维护的**：
+QML 新增了 `import` 但列表没同步时，**打包全程不报错，装完却直接起不来**
+（`module "QtQuick.xxx" is not installed` → 连带 `Type Xxx unavailable`）。
+v4.5.0.0 就因此漏了 `QtQuick\Shapes`（那时刚把矢量图标加进来）。
+现在 `package.ps1` 的 `[2.5/4]` 步骤会拿 QML 的 `import` 与这份 `Excludes` 交叉校验，
+命中就中止打包并列出冲突模块 —— **不要为了打包过而绕过它，要改 `Excludes`**。
+自检方法：`ISCC.exe installer.iss` 的 `Compressing:` 日志会逐文件列出结果，搜模块名即可核对。
+
+> 注意打包**两条分发路径的差异**：`package.ps1` 打的 zip 是整目录打包，不会漏模块；
+> 安装包走 `installer.iss` 的 `Excludes` 过滤，才会漏。所以"zip 能跑、安装包不能跑"时先查 `Excludes`。
+
 ## 约定
 
 - **命名**：类使用 PascalCase，成员使用 `m_` 前缀，静态常量使用 `k` 前缀（`kMinDelay`）

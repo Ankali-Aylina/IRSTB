@@ -76,6 +76,44 @@ if ($LASTEXITCODE -ne 0) { throw "windeployqt 失败" }
 Pop-Location
 Write-Host "  windeployqt 完成" -ForegroundColor Green
 
+# 步骤 2.5：校验 QML 模块没有被 installer.iss 漏掉
+# 背景：installer.iss 的 [Files] 用 Excludes 精简掉用不到的 QML 模块（控制安装包体积）。
+#       但这份列表是手工维护的 —— 一旦 QML 新增了 import 而列表没同步，
+#       打包过程一切正常，装完却是界面直接起不来（"module QtQuick.xxx is not installed"）。
+#       v4.5.0.0 的 QtQuick\Shapes 就是这么漏的，这里补一道交叉校验。
+Write-Host "[2.5/4] 校验 QML 模块 ..." -ForegroundColor Yellow
+$issPath = "$scriptDir\installer.iss"
+if (Test-Path $issPath) {
+    $excluded = @()
+    if ((Get-Content $issPath -Raw) -match 'Excludes:\s*"([^"]*)"') {
+        $excluded = @($Matches[1] -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+    # 收集 qml/ 下所有 import 的 Qt 模块
+    $mods = @{}
+    Get-ChildItem "$scriptDir\qml" -Filter *.qml | ForEach-Object {
+        Select-String -Path $_.FullName -Pattern '^\s*import\s+(Qt[A-Za-z0-9_.]+)\s*[0-9.]*\s*$' |
+            ForEach-Object { $mods[$_.Matches[0].Groups[1].Value] = $true }
+    }
+    $problems = @()
+    foreach ($m in ($mods.Keys | Sort-Object)) {
+        $rel = $m -replace '\.', '\'
+        if (-not (Test-Path "$buildDir\qml\$rel\qmldir")) {
+            $problems += "$m —— 未部署到 $buildDir\qml\$rel\"
+            continue
+        }
+        foreach ($ex in $excluded) {
+            if ($ex -ne 'qmltooling' -and $rel.StartsWith($ex, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $problems += "$m —— 被 installer.iss 的 Excludes 排除（$ex），但界面用到了"
+            }
+        }
+    }
+    if ($problems.Count -gt 0) {
+        throw ("以下 QML 模块会缺失，装完后界面将无法加载：`n    " + (($problems | Sort-Object -Unique) -join "`n    ") +
+               "`n  请修改 installer.iss 的 Excludes 后重试。")
+    }
+    Write-Host ("  已校验 {0} 个 QML 模块，均可用" -f $mods.Count) -ForegroundColor Green
+}
+
 # 步骤 3：精简
 Write-Host "[3/4] 精简 ..." -ForegroundColor Yellow
 

@@ -9,7 +9,7 @@ Button {
     implicitHeight: 44
 
     background: Rectangle {
-        radius: 8
+        radius: AppTheme.radiusSurface
         color: control.hovered ? AppTheme.accentSoft : AppTheme.bgPanel
         border.color: control.hovered ? AppTheme.accent : AppTheme.border
         border.width: 1

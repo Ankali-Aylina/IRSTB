@@ -20,7 +20,9 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 76
-        radius: 10
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
+        border.color: AppTheme.border
         color: AppTheme.bgPanel
 
         Text {
@@ -38,7 +40,7 @@ Item {
             anchors.leftMargin: 16
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 14
-            text: qsTr("跟随系统或手动切换浅色 / 深色")
+            text: qsTr("跟随系统，或手动切换浅色 / 深色 / NASA 朋克")
             color: AppTheme.textTertiary
             font.pixelSize: 11
         }
@@ -52,6 +54,8 @@ Item {
             ThemeButton { text: qsTr("跟随系统"); active: bridge.themeMode === 0; onClicked: bridge.setThemeMode(0) }
             ThemeButton { text: qsTr("浅色"); active: bridge.themeMode === 1; onClicked: bridge.setThemeMode(1) }
             ThemeButton { text: qsTr("深色"); active: bridge.themeMode === 2; onClicked: bridge.setThemeMode(2) }
+            // 特别主题：NASA 朋克（1960-80 年代 NASA 航天器工业设计风格）
+            ThemeButton { text: qsTr("NASA"); active: bridge.themeMode === 3; onClicked: bridge.setThemeMode(3) }
         }
     }
 
@@ -62,7 +66,9 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 76
-        radius: 10
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
+        border.color: AppTheme.border
         color: AppTheme.bgPanel
 
         Text {
@@ -104,7 +110,9 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 64
-        radius: 10
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
+        border.color: AppTheme.border
         color: AppTheme.bgPanel
 
         ThemeIcon {
@@ -143,7 +151,9 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 64
-        radius: 10
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
+        border.color: AppTheme.border
         color: AppTheme.bgPanel
 
         ThemeIcon {
@@ -196,7 +206,9 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 64
-        radius: 10
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
+        border.color: AppTheme.border
         color: AppTheme.bgPanel
 
         Text {
@@ -227,7 +239,7 @@ Item {
             onClicked: bridge.resetSettings()
 
             background: Rectangle {
-                radius: 6
+                radius: AppTheme.radiusButton
                 color: parent.hovered ? AppTheme.dangerHover : AppTheme.danger
                 implicitWidth: 60
                 implicitHeight: 28

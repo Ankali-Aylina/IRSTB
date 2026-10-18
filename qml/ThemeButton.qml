@@ -9,7 +9,7 @@ Button {
     implicitHeight: 30
 
     background: Rectangle {
-        radius: 15
+        radius: AppTheme.radiusPill
         color: control.active ? AppTheme.accent
              : control.hovered ? AppTheme.accentSoft
              : AppTheme.bgTrack

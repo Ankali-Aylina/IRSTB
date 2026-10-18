@@ -13,21 +13,27 @@ Window {
     title: qsTr("智能散热小桌板")
 
     property bool systemDark: bridge.systemDark
-    property bool isDark: bridge.themeMode === 1 ? false
-                       : bridge.themeMode === 2 ? true
-                       : systemDark
+    // 主题模式（0=跟随系统 1=浅色 2=深色 3=NASA 朋克）与系统深浅色都交给 AppTheme 推导，
+    // 这样 AppTheme 能同时决定 isDark 和 nasa 两个派生状态。
+    readonly property bool isDark: AppTheme.isDark
 
     Binding {
         target: AppTheme
-        property: "isDark"
-        value: root.isDark
+        property: "mode"
+        value: bridge.themeMode
+    }
+
+    Binding {
+        target: AppTheme
+        property: "systemDark"
+        value: root.systemDark
     }
 
     onIsDarkChanged: bridge.applyDarkMode(isDark)
 
     Component.onCompleted: {
-        console.log("isDark:", isDark)
-        console.log("bridge.themeMode:", bridge.themeMode)
+        console.log("themeMode:", bridge.themeMode)
+        console.log("isDark:", isDark, " nasa:", AppTheme.nasa)
         console.log("bridge.systemDark:", bridge.systemDark)
         bridge.applyDarkMode(isDark)
     }

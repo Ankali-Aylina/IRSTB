@@ -11,7 +11,7 @@ Button {
     focusPolicy: Qt.NoFocus
 
     background: Rectangle {
-        radius: 8
+        radius: AppTheme.radiusSurface
         color: control.active ? AppTheme.accentSoft
              : control.hovered ? AppTheme.accentSoft
              : "transparent"

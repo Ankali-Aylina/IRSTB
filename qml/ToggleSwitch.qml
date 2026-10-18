@@ -38,7 +38,7 @@ Button {
             anchors.centerIn: parent
             width: control.trackWidth
             height: control.trackHeight
-            radius: height / 2
+            radius: AppTheme.radiusSwitch
 
             // 关：空心轨道（只描边）  开：实心轨道
             color: control.checked ? AppTheme.accent : "transparent"

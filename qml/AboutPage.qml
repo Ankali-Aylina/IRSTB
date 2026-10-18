@@ -18,7 +18,9 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 142
-        radius: 10
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
+        border.color: AppTheme.border
         color: AppTheme.bgPanel
 
         Item {
@@ -144,7 +146,9 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 72
-        radius: 10
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
+        border.color: AppTheme.border
         color: AppTheme.bgPanel
         visible: bridge.otaRunning
              || (bridge.otaStatusText.length > 0 && bridge.otaPercent > 0)
@@ -193,13 +197,13 @@ Item {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 12
             height: 6
-            radius: 3
+            radius: AppTheme.radiusTick
             color: AppTheme.border
 
             Rectangle {
                 width: parent.width * Math.max(0, Math.min(100, bridge.otaPercent)) / 100
                 height: parent.height
-                radius: 3
+                radius: AppTheme.radiusTick
                 color: AppTheme.accent
                 Behavior on width { NumberAnimation { duration: 120 } }
             }

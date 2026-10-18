@@ -21,6 +21,9 @@
         <file>qml/ThemeIcon.qml</file>
         <file>qml/ActionButton.qml</file>
         <file>qml/ToggleSwitch.qml</file>
+        <file>qml/NasaRivets.qml</file>
+        <file>qml/NasaGrid.qml</file>
+        <file>qml/NasaTicks.qml</file>
         <file>res/icon/about_fill.png</file>
         <file>res/icon/about_line.png</file>
         <file>res/icon/close.png</file>

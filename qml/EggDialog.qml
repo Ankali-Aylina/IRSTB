@@ -9,11 +9,13 @@ Dialog {
     y: (Overlay.overlay.height - height) / 2
     standardButtons: Dialog.NoButton
     padding: 20
-    background: Rectangle { color: AppTheme.bgDialog; radius: 10; border.color: AppTheme.border }
+    background: Rectangle { color: AppTheme.bgDialog; radius: AppTheme.radiusPanel; border.color: AppTheme.border }
 
     header: Rectangle {
         color: AppTheme.bgPanel
-        radius: 10
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
+        border.color: AppTheme.border
         height: 46
 
         Label {
@@ -70,7 +72,7 @@ Dialog {
             onClicked: eggDialog.close()
 
             background: Rectangle {
-                radius: 6
+                radius: AppTheme.radiusButton
                 color: parent.hovered ? AppTheme.accentHover : AppTheme.accent
                 implicitWidth: 80
                 implicitHeight: 30

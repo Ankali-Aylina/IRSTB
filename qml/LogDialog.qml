@@ -25,7 +25,7 @@ Dialog {
             onClicked: logDialog.close()
 
             background: Rectangle {
-                radius: 6
+                radius: AppTheme.radiusButton
                 color: parent.hovered ? AppTheme.accentHover : AppTheme.accent
                 implicitWidth: 80
                 implicitHeight: 30
@@ -42,13 +42,16 @@ Dialog {
 
     background: Rectangle {
         color: AppTheme.bgDialog
-        radius: 10
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
         border.color: AppTheme.border
     }
 
     header: Rectangle {
         color: AppTheme.bgPanel
-        radius: 10
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
+        border.color: AppTheme.border
         height: 46
 
         Label {
@@ -68,7 +71,7 @@ Dialog {
             textFormat: TextEdit.MarkdownText
             font.family: "Microsoft YaHei"
             font.pixelSize: 12
-            background: Rectangle { color: AppTheme.bgPanel; radius: 6 }
+            background: Rectangle { color: AppTheme.bgPanel; radius: AppTheme.radiusButton }
             wrapMode: TextEdit.Wrap
         }
     }

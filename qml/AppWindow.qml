@@ -3,7 +3,7 @@ import QtQuick.Controls
 
 Rectangle {
     id: appWindow
-    radius: 8
+    radius: AppTheme.radiusSurface
     color: AppTheme.bgBase
     border.color: AppTheme.border
     border.width: 1
@@ -13,6 +13,15 @@ Rectangle {
     property int switchTarget: 0
     property bool switching: false
     property int fanMode: 0
+
+    // NASA 朋克：平面图上叠一层极淡的双尺度蓝图网格（面板不透明，网格只在间隙中透出）
+    NasaGrid {
+        anchors.fill: parent
+        minorStep: 10
+        majorStep: 50
+        minorColor: "#120B3D91"
+        majorColor: "#260B3D91"
+    }
 
     function switchPage(target) {
         if (target === currentPage || switching)

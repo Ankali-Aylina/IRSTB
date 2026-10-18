@@ -80,19 +80,25 @@ main.cpp → ApplicationBootstrap::run()
 | --- | --- |
 | `main.qml` | `Window`（无边框、透明）+ 主题推导；`onClosing` 转交关闭对话框 |
 | `AppWindow.qml` | 圆角背景、标题栏/导航栏/页面容器、页面淡入淡出切换、三个弹窗实例 |
-| `AppTheme.qml` | **`pragma Singleton`** 主题色板；`isDark` 由 `main.qml` 用 `Binding` 写入 |
+| `AppTheme.qml` | **`pragma Singleton`** 主题中枢：原始色板 + 语义色 + 样式令牌；`mode`/`systemDark` 由 `main.qml` 用 `Binding` 写入，`isDark`/`nasa` 由它自己派生（均只读） |
 | `TitleBar` / `NavigationBar` | 标题栏（拖动 / 最小化 / 最大化 / 关闭）、顶部导航 |
 | `HomePage` / `SettingsPage` / `AboutPage` | 三个页面 |
 | `CloseDialog` / `LogDialog` / `EggDialog` | 三个弹窗 |
 | `MenuButton` / `WindowButton` / `ThemeButton` / `IconButton` / `ActionButton` | 按钮部件 |
 | `TempCard` / `FanModeButton` / `ThemeIcon` | 温度卡片、风扇模式按钮、可着色图标 |
 
-⚠️ 改 QML 时必守的两条（两者都**不会在运行时明确报错**，只会静默失效）：
+⚠️ 改 QML 时必守的三条（前两条**不会在运行时明确报错**，只会静默失效）：
 
 1. **新增 `.qml` 必须登记到 `TCV3.qrc`**。界面不是从磁盘读的，而是 `engine.load("qrc:/TCV3/qml/main.qml")` 读内嵌资源；漏登记 = 该文件在 exe 里不存在。同理，QML 里引用的 `qrc:/TCV3/res/...` 图标也必须已登记 —— `warning_line.png` 在 v4.0.0.0 的 QML 迁移中被误删出 QRC，导致 v4.0.0.0~v4.3.0.0 期间引用它的三处图标一直空白（无任何报错）。
 2. **新增单例必须写 `qml/qmldir`**（当前仅一行：`singleton AppTheme 1.0 AppTheme.qml`），且 `qmldir` 自身也要登记进 QRC。同目录隐式导入靠 `qmldir` 解析单例；缺了它单例求值为 `undefined`，所有 `AppTheme.*` 颜色绑定成片失效（表现为满屏 "Unable to assign [undefined] to QColor"）。
+3. **圆角 / 字体 / 边框宽度一律用 `AppTheme` 的样式令牌**，不要写死数字。主题不只是换色：NASA 朋克主题要求方角（0~2px）与等宽字体，写死 `radius: 10` 会让新主题失效。现有令牌：`radiusPanel` / `radiusSurface` / `radiusButton` / `radiusPill` / `radiusTick` / `radiusSwitch`、`fontBody` / `fontDisplay` / `fontMono`。
 
 QML 文件**不必**加入 `.vcxproj`：`<QtRcc Include="TCV3.qrc" />` 已覆盖。
+
+**主题体系**：`[App]/ThemeMode` = `0` 跟随系统 / `1` 浅色 / `2` 深色 / `3` NASA 朋克（`QmlBridge` 读取时校验 `0~3`）。
+`AppTheme` 是**唯一推导点**：`main.qml` 只把 `bridge.themeMode` 和 `bridge.systemDark` 绑到 `AppTheme.mode` / `AppTheme.systemDark`，
+由 `AppTheme` 自身派生 `isDark`（只读）与 `nasa`（只读）。**不要再在 QML 里自行计算 isDark**，也不要直接写 `AppTheme.isDark`
+（它是只读派生属性，写入会报错）。新增主题时在 `AppTheme` 里加一段 `xxx` 原始色板 + 在三个派生处各补一个三元分支即可。
 
 ## 关键模式
 

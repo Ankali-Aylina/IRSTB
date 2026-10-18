@@ -114,7 +114,8 @@ QmlBridge::QmlBridge(QObject* parent)
 	{
 		QVariant v = m_config->read("App", "ThemeMode");
 		if (v.isValid()) m_themeMode = v.toInt();
-		if (m_themeMode < 0 || m_themeMode > 2) m_themeMode = 0;
+		// 0=跟随系统 1=浅色 2=深色 3=NASA 朋克
+		if (m_themeMode < 0 || m_themeMode > 3) m_themeMode = 0;
 		v = m_config->read("App", "BackdropType");
 		if (v.isValid()) m_backdropType = v.toInt();
 		if (m_backdropType < 0 || m_backdropType > 2) m_backdropType = 1;

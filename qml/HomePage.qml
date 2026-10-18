@@ -55,8 +55,13 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 84
-        radius: 10
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
+        border.color: AppTheme.border
         color: AppTheme.bgPanel
+
+        // NASA 朋克：四角铆钉（仅 NASA 模式可见）
+        NasaRivets { anchors.fill: parent }
 
         ThemeIcon {
             id: bleIcon
@@ -99,6 +104,8 @@ Item {
                          : bridge.bleState === 2 ? AppTheme.info
                          : AppTheme.textPrimary
                     font.pixelSize: 15
+                    font.family: AppTheme.nasa ? AppTheme.fontMono : AppTheme.fontBody
+                    font.letterSpacing: AppTheme.nasa ? 1 : 0
                 }
             }
 
@@ -138,7 +145,7 @@ Item {
             onClicked: bridge.reconnectBle()
 
             background: Rectangle {
-                radius: 6
+                radius: AppTheme.radiusButton
                 color: parent.hovered ? AppTheme.accentHover : AppTheme.accent
                 implicitWidth: 64
                 implicitHeight: 32
@@ -164,7 +171,9 @@ Item {
         Rectangle {
             width: (parent.width - parent.spacing) / 2
             height: 100
-            radius: 10
+            radius: AppTheme.radiusPanel
+            border.width: AppTheme.nasa ? 1 : 0
+            border.color: AppTheme.border
             color: AppTheme.bgPanel
 
             Text {
@@ -207,7 +216,9 @@ Item {
         Rectangle {
             width: (parent.width - parent.spacing) / 2
             height: 100
-            radius: 10
+            radius: AppTheme.radiusPanel
+            border.width: AppTheme.nasa ? 1 : 0
+            border.color: AppTheme.border
             color: AppTheme.bgPanel
 
             Text {
@@ -235,7 +246,7 @@ Item {
                 Rectangle {
                     width: 72
                     height: 34
-                    radius: 6
+                    radius: AppTheme.radiusButton
                     color: AppTheme.bgTrack
                     anchors.verticalCenter: parent.verticalCenter
 
@@ -244,6 +255,9 @@ Item {
                         text: bridge.delayUiSeconds + " s"
                         color: AppTheme.textPrimary
                         font.pixelSize: 14
+                        // NASA 朋克：数值用等宽字体
+                        font.family: AppTheme.nasa ? AppTheme.fontMono : AppTheme.fontBody
+                        font.letterSpacing: AppTheme.nasa ? 1 : 0
                     }
                 }
 
@@ -258,7 +272,7 @@ Item {
                     onClicked: bridge.applyDelay()
 
                     background: Rectangle {
-                        radius: 6
+                        radius: AppTheme.radiusButton
                         color: parent.hovered ? AppTheme.accentHover : AppTheme.accent
                         implicitWidth: 64
                         implicitHeight: 32
@@ -282,7 +296,9 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 88
-        radius: 10
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
+        border.color: AppTheme.border
         color: AppTheme.bgPanel
 
         Text {
@@ -325,7 +341,7 @@ Item {
             Rectangle {
                 width: 72
                 height: 34
-                radius: 6
+                radius: AppTheme.radiusButton
                 color: AppTheme.bgTrack
                 anchors.verticalCenter: parent.verticalCenter
 
@@ -334,6 +350,9 @@ Item {
                     text: bridge.shutdownMinutes + " min"
                     color: AppTheme.textPrimary
                     font.pixelSize: 14
+                    // NASA 朋克：数值用等宽字体
+                    font.family: AppTheme.nasa ? AppTheme.fontMono : AppTheme.fontBody
+                    font.letterSpacing: AppTheme.nasa ? 1 : 0
                 }
             }
 
@@ -348,7 +367,7 @@ Item {
                 onClicked: bridge.startShutdownCooling()
 
                 background: Rectangle {
-                    radius: 6
+                    radius: AppTheme.radiusButton
                     color: parent.pressed ? AppTheme.dangerHover
                          : parent.hovered ? AppTheme.dangerHover
                          : AppTheme.danger
@@ -373,7 +392,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 40
-        radius: 8
+        radius: AppTheme.radiusSurface
         color: AppTheme.dangerSoft
         border.color: AppTheme.danger
         border.width: 1

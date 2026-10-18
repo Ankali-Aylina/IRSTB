@@ -19,66 +19,92 @@ Item {
         anchors.topMargin: 30
         anchors.left: parent.left
         anchors.right: parent.right
-        height: 100
+        height: 76
         radius: AppTheme.radiusPanel
         border.width: AppTheme.nasa ? 1 : 0
         border.color: AppTheme.border
         color: AppTheme.bgPanel
 
-        // ---- 第一行：主题模式（跟随系统 / 手动·浅色 / 手动·深色）----
         Text {
             anchors.left: parent.left
             anchors.leftMargin: 16
-            anchors.verticalCenter: modeRow.verticalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 14
             text: qsTr("主题模式")
             color: AppTheme.textPrimary
             font.pixelSize: 13
         }
 
+        Text {
+            anchors.left: parent.left
+            anchors.leftMargin: 16
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 14
+            text: qsTr("跟随系统，或手动指定浅色 / 深色")
+            color: AppTheme.textTertiary
+            font.pixelSize: 11
+        }
+
         Row {
-            id: modeRow
             anchors.right: parent.right
             anchors.rightMargin: 14
-            anchors.top: parent.top
-            anchors.topMargin: 16
-            height: 30
-            spacing: 6
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 8
 
             ThemeButton { text: qsTr("跟随系统"); active: bridge.themeMode === 0; onClicked: bridge.setThemeMode(0) }
             ThemeButton { text: qsTr("浅色"); active: bridge.themeMode === 1; onClicked: bridge.setThemeMode(1) }
             ThemeButton { text: qsTr("深色"); active: bridge.themeMode === 2; onClicked: bridge.setThemeMode(2) }
         }
+    }
 
-        // ---- 第二行：风格（默认 / NASA 朋克）----
-        // 风格与明暗是正交的：NASA 亮/暗由「风格=NASA + 上方的明暗选择」推出，
-        // 所以不需要单独的「NASA 亮 / NASA 暗」按钮。
+    // 风格：与明暗正交，所以独立成一块（与「背景材质」同样的单行布局）
+    Rectangle {
+        id: stylePanel
+        anchors.top: themePanel.bottom
+        anchors.topMargin: 10
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 76
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
+        border.color: AppTheme.border
+        color: AppTheme.bgPanel
+
         Text {
             anchors.left: parent.left
             anchors.leftMargin: 16
-            anchors.verticalCenter: styleRow.verticalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 14
             text: qsTr("风格")
             color: AppTheme.textPrimary
             font.pixelSize: 13
         }
 
+        Text {
+            anchors.left: parent.left
+            anchors.leftMargin: 16
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 14
+            text: qsTr("NASA 朋克：1960–80 年代航天器工业设计")
+            color: AppTheme.textTertiary
+            font.pixelSize: 11
+        }
+
         Row {
-            id: styleRow
             anchors.right: parent.right
             anchors.rightMargin: 14
-            anchors.top: modeRow.bottom
-            anchors.topMargin: 8
-            height: 30
-            spacing: 6
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 8
 
+            // 明暗仍由上面的「主题模式」决定 —— 「NASA 亮 / NASA 暗」由此自动推出
             ThemeButton { text: qsTr("默认"); active: bridge.themeStyle === 0; onClicked: bridge.setThemeStyle(0) }
-            // 1960-80 年代 NASA 航天器工业设计风格
             ThemeButton { text: qsTr("NASA"); active: bridge.themeStyle === 1; onClicked: bridge.setThemeStyle(1) }
         }
     }
 
     Rectangle {
         id: backdropPanel
-        anchors.top: themePanel.bottom
+        anchors.top: stylePanel.bottom
         anchors.topMargin: 10
         anchors.left: parent.left
         anchors.right: parent.right

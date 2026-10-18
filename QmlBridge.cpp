@@ -110,13 +110,35 @@ QmlBridge::QmlBridge(QObject* parent)
 		timer->start();
 	}
 
-	// 外观：主题模式与背景材质（默认 跟随系统 + Mica）
+	// 外观：主题风格 + 主题模式、背景材质（默认 默认风格 + 跟随系统 + Mica）
 	{
-		QVariant v = m_config->read("App", "ThemeMode");
-		if (v.isValid()) m_themeMode = v.toInt();
-		// 0=跟随系统 1=浅色 2=深色 3=NASA 朋克（亮） 4=NASA 朋克（暗）
-		if (m_themeMode < 0 || m_themeMode > 4) m_themeMode = 0;
-		v = m_config->read("App", "BackdropType");
+		// 主题现在是两个独立维度：风格（0=默认 1=NASA）+ 模式（0=跟随系统 1=浅色 2=深色）。
+		// 旧配置只有一个 [App]/ThemeMode（0~4，其中 3/4 表示 NASA 亮/暗），这里做一次迁移：
+		// 缺少 ThemeStyle 键 = 老配置，按旧值换算并写回新键。
+		QVariant styleVar = m_config->read("App", "ThemeStyle");
+		QVariant modeVar = m_config->read("App", "ThemeMode");
+		if (styleVar.isValid()) {
+			m_themeStyle = styleVar.toInt();
+			m_themeMode = modeVar.toInt();
+		} else {
+			const int legacy = modeVar.isValid() ? modeVar.toInt() : 0;
+			if (legacy == 3) {          // 旧「NASA 亮」
+				m_themeStyle = 1;
+				m_themeMode = 1;
+			} else if (legacy == 4) {   // 旧「NASA 暗」
+				m_themeStyle = 1;
+				m_themeMode = 2;
+			} else {
+				m_themeStyle = 0;
+				m_themeMode = legacy;
+			}
+			m_config->write("App", "ThemeStyle", QString::number(m_themeStyle));
+			m_config->write("App", "ThemeMode", QString::number(m_themeMode));
+		}
+		if (m_themeStyle < 0 || m_themeStyle > 1) m_themeStyle = 0;
+		if (m_themeMode < 0 || m_themeMode > 2) m_themeMode = 0;
+
+		QVariant v = m_config->read("App", "BackdropType");
 		if (v.isValid()) m_backdropType = v.toInt();
 		if (m_backdropType < 0 || m_backdropType > 2) m_backdropType = 1;
 
@@ -571,15 +593,25 @@ void QmlBridge::resetSettings()
 // 主题模式与背景材质（WinUI Mica/Acrylic 风格）
 // ============================================================================
 
+void QmlBridge::setThemeStyle(int style)
+{
+	// 0=默认 1=NASA 朋克（越界值静默忽略）
+	if (style < 0 || style > 1) return;
+	if (style == m_themeStyle) return;
+	m_themeStyle = style;
+	m_config->write("App", "ThemeStyle", QString::number(style));
+	emit themeStyleChanged(style);
+}
+
 void QmlBridge::setThemeMode(int mode)
 {
-	// 0=跟随系统 1=浅色 2=深色 3=NASA 朋克（亮） 4=NASA 朋克（暗）（越界值静默忽略）
-	if (mode < 0 || mode > 4) return;
+	// 0=跟随系统 1=手动·浅色 2=手动·深色（越界值静默忽略）
+	if (mode < 0 || mode > 2) return;
 	if (mode == m_themeMode) return;
 	m_themeMode = mode;
 	m_config->write("App", "ThemeMode", QString::number(mode));
 	emit themeModeChanged(mode);
-	// QML 侧根据 themeMode + 系统配色方案计算 isDark，再回调 applyDarkMode 更新 DWM
+	// QML 侧根据 style + mode + 系统配色方案计算明暗，再回调 applyDarkMode 更新 DWM
 }
 
 void QmlBridge::setBackdropType(int type)

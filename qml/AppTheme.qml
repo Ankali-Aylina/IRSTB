@@ -6,19 +6,24 @@ import QtQuick
 QtObject {
     id: theme
 
-    // 主题模式：0=跟随系统 1=浅色 2=深色 3=NASA 朋克（亮） 4=NASA 朋克（暗）
+    // ===== 主题由两个独立维度决定 =====
+    // 风格 style：0=默认（普通浅色/深色）  1=NASA 朋克
+    // 模式 mode ：0=跟随系统  1=手动·浅色  2=手动·深色
+    // 于是「NASA 亮 / NASA 暗」不是独立模式，而是 style=NASA 时由明暗推出来的。
+    property int style: 0
     property int mode: 0
     property bool systemDark: false
 
-    readonly property bool nasaLight: mode === 3
-    readonly property bool nasaDark: mode === 4
-    // 「是不是 NASA 风格」的判定（结构决定：方角、等宽字体、金属边框、装饰件）
-    readonly property bool nasa: nasaLight || nasaDark
-    readonly property bool isDark: nasaDark ? true
-                                 : nasaLight ? false
-                                 : mode === 1 ? false
-                                 : mode === 2 ? true
-                                 : systemDark
+    // 最终明暗：手动时直接指定，否则跟随系统
+    readonly property bool effectiveDark: mode === 1 ? false
+                                        : mode === 2 ? true
+                                        : systemDark
+    readonly property bool isDark: effectiveDark
+
+    // NASA 风格下再分亮/暗（结构决定：方角、等宽字体、金属边框、装饰件）
+    readonly property bool nasa: style === 1
+    readonly property bool nasaLight: nasa && !effectiveDark
+    readonly property bool nasaDark: nasa && effectiveDark
 
     // ================= 浅色主题 =================
     readonly property color lightBgBase: "#E6F3F3F3"

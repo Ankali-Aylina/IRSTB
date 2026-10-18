@@ -40,7 +40,10 @@ class QmlBridge : public QObject
 	Q_PROPERTY(int bleState READ bleState NOTIFY bleStateChanged)
 	Q_PROPERTY(QString bleStatusText READ bleStatusText NOTIFY bleStateChanged)
 	Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
-	// 主题模式：0=跟随系统 1=浅色 2=深色 3=NASA 朋克（持久化到 [App]/ThemeMode）
+	// 主题风格：0=默认 1=NASA 朋克（持久化到 [App]/ThemeStyle）
+	Q_PROPERTY(int themeStyle READ themeStyle NOTIFY themeStyleChanged)
+	// 主题模式：0=跟随系统 1=手动·浅色 2=手动·深色（持久化到 [App]/ThemeMode）
+	// 「NASA 亮 / NASA 暗」不再是独立模式，而是 themeStyle=1 时由明暗推出的
 	Q_PROPERTY(int themeMode READ themeMode NOTIFY themeModeChanged)
 	// 背景材质：0=无 1=Mica 2=Acrylic（持久化到 [App]/BackdropType）
 	Q_PROPERTY(int backdropType READ backdropType NOTIFY backdropTypeChanged)
@@ -86,6 +89,7 @@ public:
 	int bleState() const { return m_bleState; }
 	QString bleStatusText() const { return m_bleStatusText; }
 	QString appVersion() const { return QCoreApplication::applicationVersion(); }
+	int themeStyle() const { return m_themeStyle; }
 	int themeMode() const { return m_themeMode; }
 	int backdropType() const { return m_backdropType; }
 	bool notifyEnabled() const { return m_notifyEnabled; }
@@ -134,7 +138,10 @@ public slots:
 	/// <summary>读取更新日志（QRC 内 markdown 原文）</summary>
 	QString readUpdateLog();
 
-	/// <summary>设置主题模式（0=跟随系统 1=浅色 2=深色）</summary>
+	/// <summary>设置主题风格（0=默认 1=NASA 朋克）</summary>
+	void setThemeStyle(int style);
+
+	/// <summary>设置主题模式（0=跟随系统 1=手动·浅色 2=手动·深色）</summary>
 	void setThemeMode(int mode);
 
 	/// <summary>设置背景材质（0=无 1=Mica 2=Acrylic）</summary>
@@ -169,6 +176,7 @@ signals:
 	void autoStartEnabledChanged(bool enabled);
 	void shutdownNoticeChanged();
 	void bleStateChanged();
+	void themeStyleChanged(int style);
 	void themeModeChanged(int mode);
 	void backdropTypeChanged(int type);
 	void notifyEnabledChanged(bool enabled);
@@ -232,6 +240,7 @@ private:
 	bool m_autoStartEnabled = false;
 	int m_bleState = BleDisconnected;
 	QString m_bleStatusText = QStringLiteral("未连接");
+	int m_themeStyle = 0;
 	int m_themeMode = 0;
 	int m_backdropType = 1;
 	bool m_notifyEnabled = true;   // 系统通知默认开启

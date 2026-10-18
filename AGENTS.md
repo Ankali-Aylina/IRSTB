@@ -97,13 +97,26 @@ main.cpp → ApplicationBootstrap::run()
 
 QML 文件**不必**加入 `.vcxproj`：`<QtRcc Include="TCV3.qrc" />` 已覆盖。
 
-**主题体系**：`[App]/ThemeMode` = `0` 跟随系统 / `1` 浅色 / `2` 深色 / `3` NASA 朋克（亮） / `4` NASA 朋克（暗）。
-⚠️ `QmlBridge` 有**两处**范围校验必须同步（读取 `[App]/ThemeMode` 时 + `setThemeMode()` 里），
+**主题体系**：主题是**两个正交维度**，不是一个平铺的枚举：
+
+| 维度 | 配置键 | 取值 |
+| --- | --- | --- |
+| 模式 mode | `[App]/ThemeMode` | `0` 跟随系统 / `1` 手动·浅色 / `2` 手动·深色 |
+| 风格 style | `[App]/ThemeStyle` | `0` 默认 / `1` NASA 朋克 |
+
+「NASA 亮 / NASA 暗」不是独立模式，而是 `style=1` 时由明暗推出来的 —— 所以新增明暗档位只需改 `mode`，新增风格只需改 `style`。
+
+⚠️ **老配置迁移**：早期版本只有一个 `ThemeMode`（`0~4`，其中 `3`=NASA 亮、`4`=NASA 暗）。
+`QmlBridge::initConfigFile()` 里以「`ThemeStyle` 键是否存在」判断新旧配置，旧值换算后回写两个新键，用户无需重设。
+⚠️ `QmlBridge` 的**两处**范围校验必须同步（读取时 + `setThemeMode()` / `setThemeStyle()` 里），
 只改一处会出现「启动能进新主题、但点按钮没反应」——这个坑已经踩过一次。
-`AppTheme` 是**唯一推导点**：`main.qml` 只把 `bridge.themeMode` 和 `bridge.systemDark` 绑到 `AppTheme.mode` / `AppTheme.systemDark`，
-由 `AppTheme` 自身派生 `isDark` / `nasaLight` / `nasaDark` / `nasa`（均只读）。**不要再在 QML 里自行计算 isDark**，也不要直接写 `AppTheme.isDark`
-（它是只读派生属性，写入会报错）。新增主题时在 `AppTheme` 里加一段 `xxx` 原始色板 + 在派生处各补一个三元分支即可；
-⚠️ 三个 NASA 相关派生要按 `nasaDark → nasaLight → isDark` 的**顺序**判断，写反会让暗色主题拿到亮色 token。
+
+`AppTheme` 是**唯一推导点**：`main.qml` 只把 `bridge.themeStyle` / `bridge.themeMode` / `bridge.systemDark`
+绑到 `AppTheme.style` / `AppTheme.mode` / `AppTheme.systemDark`，由 `AppTheme` 自身派生
+`effectiveDark` / `isDark` / `nasa` / `nasaLight` / `nasaDark`（均只读）。
+**不要再在 QML 里自行计算 isDark**，也不要直接写 `AppTheme.isDark`（它是只读派生属性，写入会报错）。
+新增主题时在 `AppTheme` 里加一段 `xxx` 原始色板 + 在派生处各补一个三元分支即可；
+⚠️ 派生链要按 `nasaDark → nasaLight → 明暗` 的**顺序**判断，写反会让暗色主题拿到亮色 token。
 组件里不要直接引用 `nasaEnamel` / `nasaMetalDark` 这类**亮色原始值**（暗色主题下会失效），
 统一用语义令牌（`bgBase` / `textSecondary` / `border` …）或 `nasaChrome*` / `nasaGoldAccent` / `decoRivet` 这类结构件令牌。
 

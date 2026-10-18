@@ -18,7 +18,7 @@ Item {
             radius: width / 2
             color: AppTheme.decoRivet
             border.width: 1
-            border.color: AppTheme.nasaMetalDark
+            border.color: AppTheme.decoRivetRing
             x: (index % 2 === 0) ? root.rivetInset : root.width - root.rivetInset - width
             y: (index < 2) ? root.rivetInset : root.height - root.rivetInset - height
         }

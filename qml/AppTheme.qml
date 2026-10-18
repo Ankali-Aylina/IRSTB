@@ -6,12 +6,16 @@ import QtQuick
 QtObject {
     id: theme
 
-    // 主题模式：0=跟随系统 1=浅色 2=深色 3=NASA 朋克
+    // 主题模式：0=跟随系统 1=浅色 2=深色 3=NASA 朋克（亮） 4=NASA 朋克（暗）
     property int mode: 0
     property bool systemDark: false
 
-    readonly property bool nasa: mode === 3
-    readonly property bool isDark: nasa ? false
+    readonly property bool nasaLight: mode === 3
+    readonly property bool nasaDark: mode === 4
+    // 「是不是 NASA 风格」的判定（结构决定：方角、等宽字体、金属边框、装饰件）
+    readonly property bool nasa: nasaLight || nasaDark
+    readonly property bool isDark: nasaDark ? true
+                                 : nasaLight ? false
                                  : mode === 1 ? false
                                  : mode === 2 ? true
                                  : systemDark
@@ -81,26 +85,61 @@ QtObject {
     readonly property color nasaGoldDeep:   "#C9932E"
     readonly property color nasaGreen:      "#2C6E49"   // 深绿（仅 GO / 正常）
 
+    // ================= NASA 朋克 · 暗（夜间仪表板）=================
+    // 同一套语言，把明暗关系反过来：深色仪表板底 + 提亮的金属边。
+    // 蓝图蓝 / 信号红 / 火箭橙 / Kapton 金都在暗底上做了提亮，否则原色对比不足。
+    readonly property color nasaDPanel:      "#1D2228"   // 面板（比底略亮）
+    readonly property color nasaDPanelDeep:  "#12161A"   // 凹陷/内槽
+    readonly property color nasaDPanelHover: "#262C33"   // 面板 hover
+    readonly property color nasaDChrome:     "#2B3238"   // 标题栏仪表板
+    readonly property color nasaDChromeDeep: "#0C0E10"   // 文档控制条
+    readonly property color nasaDMetal:      "#79828A"   // 金属灰（边框）
+    readonly property color nasaDMetalLite:  "#A8B2BA"   // 金属灰-亮
+    readonly property color nasaDTextPri:    "#E8EDF2"   // 主文字（烤漆白偏冷）
+    readonly property color nasaDTextSec:    "#9AA5AE"   // 次级文字
+    readonly property color nasaDTextTer:    "#6E7881"   // 三级文字
+    readonly property color nasaDBlue:       "#4A82C8"   // 蓝图蓝（提亮）
+    readonly property color nasaDBlueHover:  "#5D93D6"
+    readonly property color nasaDBlueSoft:   "#1E2C42"   // 蓝色深底（选中态）
+    readonly property color nasaDRed:        "#E9565F"   // 信号红（提亮）
+    readonly property color nasaDRedHover:   "#F0757C"
+    readonly property color nasaDRedSoft:    "#3A2024"
+    readonly property color nasaDOrange:     "#D9803F"   // 火箭橙（提亮）
+    readonly property color nasaDGold:       "#E8B84B"   // Kapton 金
+    readonly property color nasaDGoldDeep:   "#D2A040"
+    readonly property color nasaDGreen:      "#5AA073"   // GO 绿（提亮）
+
     // ================= 当前主题 =================
-    readonly property color bgBase:     nasa ? nasaEnamel  : (isDark ? darkBgBase : lightBgBase)
-    readonly property color bgPanel:    nasa ? nasaPanel   : (isDark ? darkBgPanel : lightBgPanel)
-    readonly property color bgTrack:    nasa ? nasaPanelDeep : (isDark ? darkBgTrack : lightBgTrack)
-    readonly property color bgHover:    nasa ? nasaPanelHover : (isDark ? darkBgHover : lightBgHover)
-    readonly property color bgDialog:   nasa ? "#FFFDFCF9" : (isDark ? darkBgDialog : lightBgDialog)
-    readonly property color border:     nasa ? nasaMetalLite : (isDark ? darkBorder : lightBorder)
-    readonly property color textPrimary:   nasa ? nasaMetalDark : (isDark ? darkTextPrimary : lightTextPrimary)
-    readonly property color textSecondary: nasa ? nasaMetalMid  : (isDark ? darkTextSecondary : lightTextSecondary)
-    readonly property color textTertiary:  nasa ? "#8B8F93"     : (isDark ? darkTextTertiary : lightTextTertiary)
-    readonly property color accent:      nasa ? nasaBlue      : (isDark ? darkAccent : lightAccent)
-    readonly property color accentHover: nasa ? nasaBlueHover : (isDark ? darkAccentHover : lightAccentHover)
-    readonly property color accentSoft:  nasa ? nasaBlueSoft  : (isDark ? darkAccentSoft : lightAccentSoft)
-    readonly property color textOnAccent: nasa ? "#FFFFFF"     : (isDark ? darkTextOnAccent : lightTextOnAccent)
-    readonly property color danger:      nasa ? nasaRed       : (isDark ? darkDanger : lightDanger)
-    readonly property color dangerHover: nasa ? nasaRedHover  : (isDark ? darkDangerHover : lightDangerHover)
-    readonly property color dangerSoft:  nasa ? nasaRedSoft   : (isDark ? darkDangerSoft : lightDangerSoft)
-    readonly property color success:     nasa ? nasaGreen     : (isDark ? darkSuccess : lightSuccess)
+    readonly property color bgBase:     nasaDark ? "#14171B" : nasaLight ? nasaEnamel  : (isDark ? darkBgBase : lightBgBase)
+    readonly property color bgPanel:    nasaDark ? nasaDPanel : nasaLight ? nasaPanel   : (isDark ? darkBgPanel : lightBgPanel)
+    readonly property color bgTrack:    nasaDark ? nasaDPanelDeep : nasaLight ? nasaPanelDeep : (isDark ? darkBgTrack : lightBgTrack)
+    readonly property color bgHover:    nasaDark ? nasaDPanelHover : nasaLight ? nasaPanelHover : (isDark ? darkBgHover : lightBgHover)
+    readonly property color bgDialog:   nasaDark ? "#F21D2228" : nasaLight ? "#FFFDFCF9" : (isDark ? darkBgDialog : lightBgDialog)
+    readonly property color border:     nasaDark ? nasaDMetal : nasaLight ? nasaMetalLite : (isDark ? darkBorder : lightBorder)
+    readonly property color textPrimary:   nasaDark ? nasaDTextPri : nasaLight ? nasaMetalDark : (isDark ? darkTextPrimary : lightTextPrimary)
+    readonly property color textSecondary: nasaDark ? nasaDTextSec : nasaLight ? nasaMetalMid  : (isDark ? darkTextSecondary : lightTextSecondary)
+    readonly property color textTertiary:  nasaDark ? nasaDTextTer : nasaLight ? "#8B8F93"     : (isDark ? darkTextTertiary : lightTextTertiary)
+    readonly property color accent:      nasaDark ? nasaDBlue : nasaLight ? nasaBlue      : (isDark ? darkAccent : lightAccent)
+    readonly property color accentHover: nasaDark ? nasaDBlueHover : nasaLight ? nasaBlueHover : (isDark ? darkAccentHover : lightAccentHover)
+    readonly property color accentSoft:  nasaDark ? nasaDBlueSoft : nasaLight ? nasaBlueSoft  : (isDark ? darkAccentSoft : lightAccentSoft)
+    readonly property color textOnAccent: nasaDark ? "#0E1318" : nasaLight ? "#FFFFFF"     : (isDark ? darkTextOnAccent : lightTextOnAccent)
+    readonly property color danger:      nasaDark ? nasaDRed : nasaLight ? nasaRed       : (isDark ? darkDanger : lightDanger)
+    readonly property color dangerHover: nasaDark ? nasaDRedHover : nasaLight ? nasaRedHover  : (isDark ? darkDangerHover : lightDangerHover)
+    readonly property color dangerSoft:  nasaDark ? nasaDRedSoft : nasaLight ? nasaRedSoft   : (isDark ? darkDangerSoft : lightDangerSoft)
+    readonly property color success:     nasaDark ? nasaDGreen : nasaLight ? nasaGreen     : (isDark ? darkSuccess : lightSuccess)
     // 进行中：NASA 模式下用火箭橙，与蓝图蓝形成对比且不引入粉彩
-    readonly property color info:        nasa ? nasaOrange    : (isDark ? darkInfo : lightInfo)
+    readonly property color info:        nasaDark ? nasaDOrange : nasaLight ? nasaOrange    : (isDark ? darkInfo : lightInfo)
+
+    // ================= NASA 结构件令牌（TitleBar / 装饰共用）=================
+    readonly property color nasaChrome:     nasaDark ? nasaDChrome : nasaMetalDark
+    readonly property color nasaChromeDeep: nasaDark ? nasaDChromeDeep : "#1A1C1E"
+    readonly property color nasaChromeText: nasaDark ? nasaDTextPri : nasaEnamel
+    readonly property color nasaChromeTextDim: nasaDark ? "#8B959D" : nasaMetalLite
+    readonly property color nasaGoldAccent: nasaDark ? nasaDGold : nasaGold
+    readonly property color nasaRedAccent:  nasaDark ? nasaDRed : nasaRed
+    // 页面底纹（蓝图网格）——暗色下必须换成浅线，否则看不见
+    readonly property color gridMinor: nasaDark ? "#1E4A82C8" : "#120B3D91"
+    readonly property color gridMajor: nasaDark ? "#334A82C8" : "#260B3D91"
 
     // ================= 样式令牌：圆角 =================
     // NASA 朋克要求「矩形、无大圆角（0~2px）」，其余主题保持原有圆润感。
@@ -124,10 +163,11 @@ QtObject {
     readonly property int letterSpacingTight: nasa ? 0.5 : 0
 
     // ================= NASA 装饰用色 =================
-    readonly property color decoRivet:     nasaGoldDeep
-    readonly property color decoSeam:      nasaMetalLite
+    readonly property color decoRivet:     nasaDark ? nasaDGoldDeep : nasaGoldDeep
+    readonly property color decoRivetRing: nasaDark ? "#3A424A" : nasaMetalDark
+    readonly property color decoSeam:      nasaDark ? nasaDMetal : nasaMetalLite
     readonly property color decoGridMajor: "#33FFFFFF"
     readonly property color decoGridMinor: "#1FFFFFFF"
     readonly property color decoHazardA:   "#1A1C1E"
-    readonly property color decoHazardB:   nasaGold
+    readonly property color decoHazardB:   nasaDark ? nasaDGold : nasaGold
 }

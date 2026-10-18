@@ -19,8 +19,8 @@ Rectangle {
         anchors.fill: parent
         minorStep: 10
         majorStep: 50
-        minorColor: "#120B3D91"
-        majorColor: "#260B3D91"
+        minorColor: AppTheme.gridMinor
+        majorColor: AppTheme.gridMajor
     }
 
     function switchPage(target) {

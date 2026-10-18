@@ -8,7 +8,7 @@ Item {
 
     property int tickCount: 48
     property real tickStep: 4
-    property color tickColor: AppTheme.nasaMetalLite
+    property color tickColor: AppTheme.border
     property real tickHeight: height
 
     Row {

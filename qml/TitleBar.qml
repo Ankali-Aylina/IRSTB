@@ -5,7 +5,7 @@ Rectangle {
     id: titleBar
     // NASA 模式下顶部多出一条「文档控制条」，因此整体加高
     height: AppTheme.nasa ? 58 : 44
-    color: AppTheme.nasa ? AppTheme.nasaMetalDark : AppTheme.bgPanel
+    color: AppTheme.nasa ? AppTheme.nasaChrome : AppTheme.bgPanel
     radius: AppTheme.radiusSurface
 
     signal closeRequested()
@@ -18,7 +18,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 15
-        color: "#1A1C1E"
+        color: AppTheme.nasaChromeDeep
 
         // 黄黑斜纹（面积刻意很小，只做点缀）
         Canvas {
@@ -30,7 +30,7 @@ Rectangle {
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.clearRect(0, 0, width, height)
-                ctx.fillStyle = AppTheme.nasaGold
+                ctx.fillStyle = AppTheme.decoHazardB
                 ctx.fillRect(0, 0, width, height)
                 ctx.fillStyle = "#1A1C1E"
                 var step = 8
@@ -53,7 +53,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             text: "DOC NO. IRSTB-TC   ·   REV " + bridge.appVersion
                   + "   ·   PAGE 01 / 03   ·   THERMAL CONTROL ASSY."
-            color: AppTheme.nasaMetalLite
+            color: AppTheme.nasaChromeTextDim
             font.family: AppTheme.fontMono
             font.pixelSize: 9
             font.letterSpacing: 0.8
@@ -74,7 +74,7 @@ Rectangle {
         iconWidth: 26
         iconHeight: 26
         // NASA 模式：字标用 Kapton 金，是全界面仅有的 1~2 个金色焦点之一
-        color: AppTheme.nasa ? AppTheme.nasaGold : AppTheme.accent
+        color: AppTheme.nasa ? AppTheme.nasaGoldAccent : AppTheme.accent
         anchors.left: parent.left
         anchors.leftMargin: 14
         anchors.verticalCenter: parent.verticalCenter
@@ -90,7 +90,7 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         anchors.verticalCenterOffset: AppTheme.nasa ? 7 : 0
         text: qsTr("智能散热小桌板")
-        color: AppTheme.nasa ? AppTheme.nasaEnamel : AppTheme.textPrimary
+        color: AppTheme.nasa ? AppTheme.nasaChromeText : AppTheme.textPrimary
         font.pixelSize: 15
         font.family: AppTheme.fontBody
         font.bold: true
@@ -109,7 +109,7 @@ Rectangle {
 
         WindowButton {
             source: "qrc:/TCV3/res/icon/minimize.png"
-            iconColor: AppTheme.nasa ? AppTheme.nasaEnamel : AppTheme.textPrimary
+            iconColor: AppTheme.nasa ? AppTheme.nasaChromeText : AppTheme.textPrimary
             hoverColor: AppTheme.nasa ? "#33FFFFFF" : AppTheme.accentSoft
             onClicked: Window.window.hide()
         }
@@ -118,7 +118,7 @@ Rectangle {
             source: Window.window.visibility === Window.Maximized
                     ? "qrc:/TCV3/res/icon/normal.png"
                     : "qrc:/TCV3/res/icon/maximize.png"
-            iconColor: AppTheme.nasa ? AppTheme.nasaEnamel : AppTheme.textPrimary
+            iconColor: AppTheme.nasa ? AppTheme.nasaChromeText : AppTheme.textPrimary
             hoverColor: AppTheme.nasa ? "#33FFFFFF" : AppTheme.accentSoft
             onClicked: {
                 if (Window.window.visibility === Window.Maximized)
@@ -130,8 +130,8 @@ Rectangle {
 
         WindowButton {
             source: "qrc:/TCV3/res/icon/close.png"
-            iconColor: AppTheme.nasa ? AppTheme.nasaEnamel : AppTheme.textPrimary
-            hoverColor: AppTheme.nasa ? AppTheme.nasaRed : AppTheme.dangerHover
+            iconColor: AppTheme.nasa ? AppTheme.nasaChromeText : AppTheme.textPrimary
+            hoverColor: AppTheme.nasa ? AppTheme.nasaRedAccent : AppTheme.dangerHover
             onClicked: titleBar.closeRequested()
         }
     }

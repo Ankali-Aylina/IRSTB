@@ -39,8 +39,7 @@ Rectangle {
         id: cardIcon
         kind: card.iconKind
         size: card.iconSize
-        color: card.warn ? AppTheme.danger
-                         : (AppTheme.nasa ? AppTheme.nasaMetalMid : AppTheme.textSecondary)
+        color: card.warn ? AppTheme.danger : AppTheme.textSecondary
         anchors.left: parent.left
         anchors.leftMargin: card.iconLeft
         anchors.verticalCenter: parent.verticalCenter

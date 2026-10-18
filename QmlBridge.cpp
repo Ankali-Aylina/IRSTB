@@ -114,8 +114,8 @@ QmlBridge::QmlBridge(QObject* parent)
 	{
 		QVariant v = m_config->read("App", "ThemeMode");
 		if (v.isValid()) m_themeMode = v.toInt();
-		// 0=跟随系统 1=浅色 2=深色 3=NASA 朋克
-		if (m_themeMode < 0 || m_themeMode > 3) m_themeMode = 0;
+		// 0=跟随系统 1=浅色 2=深色 3=NASA 朋克（亮） 4=NASA 朋克（暗）
+		if (m_themeMode < 0 || m_themeMode > 4) m_themeMode = 0;
 		v = m_config->read("App", "BackdropType");
 		if (v.isValid()) m_backdropType = v.toInt();
 		if (m_backdropType < 0 || m_backdropType > 2) m_backdropType = 1;
@@ -573,8 +573,8 @@ void QmlBridge::resetSettings()
 
 void QmlBridge::setThemeMode(int mode)
 {
-	// 0=跟随系统 1=浅色 2=深色 3=NASA 朋克（越界值静默忽略）
-	if (mode < 0 || mode > 3) return;
+	// 0=跟随系统 1=浅色 2=深色 3=NASA 朋克（亮） 4=NASA 朋克（暗）（越界值静默忽略）
+	if (mode < 0 || mode > 4) return;
 	if (mode == m_themeMode) return;
 	m_themeMode = mode;
 	m_config->write("App", "ThemeMode", QString::number(mode));

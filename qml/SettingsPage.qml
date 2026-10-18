@@ -49,13 +49,24 @@ Item {
             anchors.right: parent.right
             anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 8
+            spacing: 6
 
             ThemeButton { text: qsTr("跟随系统"); active: bridge.themeMode === 0; onClicked: bridge.setThemeMode(0) }
             ThemeButton { text: qsTr("浅色"); active: bridge.themeMode === 1; onClicked: bridge.setThemeMode(1) }
             ThemeButton { text: qsTr("深色"); active: bridge.themeMode === 2; onClicked: bridge.setThemeMode(2) }
-            // 特别主题：NASA 朋克（1960-80 年代 NASA 航天器工业设计风格）
-            ThemeButton { text: qsTr("NASA"); active: bridge.themeMode === 3; onClicked: bridge.setThemeMode(3) }
+            // 特别主题：NASA 朋克（1960-80 年代 NASA 航天器工业设计风格），亮 / 暗两版
+            ThemeButton {
+                text: qsTr("NASA 亮")
+                active: bridge.themeMode === 3
+                onClicked: bridge.setThemeMode(3)
+                implicitWidth: 76
+            }
+            ThemeButton {
+                text: qsTr("NASA 暗")
+                active: bridge.themeMode === 4
+                onClicked: bridge.setThemeMode(4)
+                implicitWidth: 76
+            }
         }
     }
 

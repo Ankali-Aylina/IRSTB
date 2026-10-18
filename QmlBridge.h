@@ -40,7 +40,7 @@ class QmlBridge : public QObject
 	Q_PROPERTY(int bleState READ bleState NOTIFY bleStateChanged)
 	Q_PROPERTY(QString bleStatusText READ bleStatusText NOTIFY bleStateChanged)
 	Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
-	// 主题模式：0=跟随系统 1=浅色 2=深色（持久化到 [App]/ThemeMode）
+	// 主题模式：0=跟随系统 1=浅色 2=深色 3=NASA 朋克（持久化到 [App]/ThemeMode）
 	Q_PROPERTY(int themeMode READ themeMode NOTIFY themeModeChanged)
 	// 背景材质：0=无 1=Mica 2=Acrylic（持久化到 [App]/BackdropType）
 	Q_PROPERTY(int backdropType READ backdropType NOTIFY backdropTypeChanged)

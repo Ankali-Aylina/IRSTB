@@ -573,7 +573,8 @@ void QmlBridge::resetSettings()
 
 void QmlBridge::setThemeMode(int mode)
 {
-	if (mode < 0 || mode > 2) return;
+	// 0=跟随系统 1=浅色 2=深色 3=NASA 朋克（越界值静默忽略）
+	if (mode < 0 || mode > 3) return;
 	if (mode == m_themeMode) return;
 	m_themeMode = mode;
 	m_config->write("App", "ThemeMode", QString::number(mode));

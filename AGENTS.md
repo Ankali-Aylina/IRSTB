@@ -94,6 +94,23 @@ main.cpp → ApplicationBootstrap::run()
 1. **新增 `.qml` 必须登记到 `TCV3.qrc`**。界面不是从磁盘读的，而是 `engine.load("qrc:/TCV3/qml/main.qml")` 读内嵌资源；漏登记 = 该文件在 exe 里不存在。同理，QML 里引用的 `qrc:/TCV3/res/...` 图标也必须已登记 —— `warning_line.png` 在 v4.0.0.0 的 QML 迁移中被误删出 QRC，导致 v4.0.0.0~v4.3.0.0 期间引用它的三处图标一直空白（无任何报错）。
 2. **新增单例必须写 `qml/qmldir`**（当前仅一行：`singleton AppTheme 1.0 AppTheme.qml`），且 `qmldir` 自身也要登记进 QRC。同目录隐式导入靠 `qmldir` 解析单例；缺了它单例求值为 `undefined`，所有 `AppTheme.*` 颜色绑定成片失效（表现为满屏 "Unable to assign [undefined] to QColor"）。
 3. **圆角 / 字体 / 边框宽度一律用 `AppTheme` 的样式令牌**，不要写死数字。主题不只是换色：NASA 朋克主题要求方角（0~2px）与等宽字体，写死 `radius: 10` 会让新主题失效。现有令牌：`radiusPanel` / `radiusSurface` / `radiusButton` / `radiusPill` / `radiusTick` / `radiusSwitch`、`fontBody` / `fontDisplay` / `fontMono`。
+   ⚠️ **每个 `Text` / `Label` 都必须设 `font.family: AppTheme.fontBody`**（NASA 主题靠它切字体）。
+   漏设不会报错，但那处文字会一直用系统默认字体 —— 表现为「大部分中文是 MapleMono、个别地方是雅黑」。加字号时顺手加字体族。
+
+**字体方案（NASA 风格）**：拉丁用 **Nasalization**、中文用 **MapleMono**，两者都「按已安装才用」：
+
+- QML 的 `font` 值类型**没有 `families` 属性**（Qt 6.11 实测报 `Cannot assign to non-existent property`），一个 `Text` 上写不了字体列表；
+- 所以走 Qt 的**按脚本回退**：`QmlBridge` 构造时把 MapleMono 注册成 `QChar::Script_Han` 的应用级回退
+  （`QFontDatabase::addApplicationFallbackFontFamily`），主字体族填 Nasalization —— 同一个 `Text` 里的中文自动落到
+  MapleMono，拉丁仍是 Nasalization；
+- 族名**不写死**：`QmlBridge` 从 `QFontDatabase::families()` 按候选拼写解析（`Nasalization Rg` / `Nasalization`、
+  `Maple Mono NF CN` / `Maple Mono` / `MapleMono`），经 `main.qml` 的 `Binding` 写进 `AppTheme.fontLatin` / `fontCjk`；
+  未安装时为空串，回退系统字体（不报错）；
+- 该回退**只对「主字体缺该字形」生效**，所以默认/浅色/深色主题（主字体 `Microsoft YaHei UI`，自带中文字形）完全不受影响；
+- `AppTheme.fontSystem` 必须是 **`Microsoft YaHei UI`**（= Qt 在中文 Windows 上的默认族）。写成 `Microsoft YaHei` 或空串
+  都会让非 NASA 主题的字形发生变化（**空串 ≠ 不设置**，实测字形不同）；
+- ⚠️ **`qApp->setFont()` 改不动已经创建的 `Text`**（实测运行时改应用默认字体，界面 0% 变化），
+  所以别指望用「改应用默认字体」省掉逐个组件加令牌 —— 主题要实时切换只能靠 QML 绑定。
 
 QML 文件**不必**加入 `.vcxproj`：`<QtRcc Include="TCV3.qrc" />` 已覆盖。
 

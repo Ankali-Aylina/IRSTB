@@ -22,6 +22,8 @@ Dialog {
             anchors.centerIn: parent
             text: qsTr("彩蛋")
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
+            font.pixelSize: 13
         }
     }
 
@@ -41,6 +43,7 @@ Dialog {
             width: parent.width
             text: qsTr("啊~真的Rich!")
             color: AppTheme.accent
+            font.family: AppTheme.fontBody
             font.pixelSize: 24
             font.bold: true
             horizontalAlignment: Text.AlignHCenter
@@ -50,6 +53,7 @@ Dialog {
             width: parent.width
             text: qsTr("感谢所有支持这个项目的朋友！")
             color: AppTheme.textTertiary
+            font.family: AppTheme.fontBody
             font.pixelSize: 12
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap

@@ -23,6 +23,19 @@ Window {
         value: bridge.themeStyle
     }
 
+    // NASA 风格的字体族（运行时从已安装字体解析；未安装时为空串 → 回退系统默认）
+    Binding {
+        target: AppTheme
+        property: "fontLatin"
+        value: bridge.fontLatin
+    }
+
+    Binding {
+        target: AppTheme
+        property: "fontCjk"
+        value: bridge.fontCjk
+    }
+
     Binding {
         target: AppTheme
         property: "mode"

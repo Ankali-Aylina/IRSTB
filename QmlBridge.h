@@ -40,6 +40,11 @@ class QmlBridge : public QObject
 	Q_PROPERTY(int bleState READ bleState NOTIFY bleStateChanged)
 	Q_PROPERTY(QString bleStatusText READ bleStatusText NOTIFY bleStateChanged)
 	Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
+	// NASA 风格使用的字体族，运行时从「已安装字体」里解析（未安装时为空串，QML 侧回退系统默认）：
+	// fontLatin 负责拉丁字形（Nasalization），fontCjk 负责中文字形（MapleMono）。
+	// 中文之所以能在 fontLatin 做主字体时仍走 MapleMono，靠的是 QFontDatabase 的 Han 脚本回退。
+	Q_PROPERTY(QString fontLatin READ fontLatin CONSTANT)
+	Q_PROPERTY(QString fontCjk READ fontCjk CONSTANT)
 	// 主题风格：0=默认 1=NASA 朋克（持久化到 [App]/ThemeStyle）
 	Q_PROPERTY(int themeStyle READ themeStyle NOTIFY themeStyleChanged)
 	// 主题模式：0=跟随系统 1=手动·浅色 2=手动·深色（持久化到 [App]/ThemeMode）
@@ -89,6 +94,8 @@ public:
 	int bleState() const { return m_bleState; }
 	QString bleStatusText() const { return m_bleStatusText; }
 	QString appVersion() const { return QCoreApplication::applicationVersion(); }
+	QString fontLatin() const { return m_fontLatin; }
+	QString fontCjk() const { return m_fontCjk; }
 	int themeStyle() const { return m_themeStyle; }
 	int themeMode() const { return m_themeMode; }
 	int backdropType() const { return m_backdropType; }
@@ -241,6 +248,8 @@ private:
 	int m_bleState = BleDisconnected;
 	QString m_bleStatusText = QStringLiteral("未连接");
 	int m_themeStyle = 0;
+	QString m_fontLatin;                // NASA 风格的拉丁字体族（未安装为空串）
+	QString m_fontCjk;                  // NASA 风格的中文字体族（未安装为空串）
 	int m_themeMode = 0;
 	int m_backdropType = 1;
 	bool m_notifyEnabled = true;   // 系统通知默认开启

@@ -9,6 +9,7 @@ Item {
     Text {
         text: qsTr("关于")
         color: AppTheme.textSecondary
+        font.family: AppTheme.fontBody
         font.pixelSize: 13
     }
 
@@ -55,6 +56,7 @@ Item {
             anchors.topMargin: 20
             text: qsTr("智能散热小桌板")
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
             font.pixelSize: 17
             font.bold: true
         }
@@ -66,6 +68,7 @@ Item {
             anchors.topMargin: 50
             text: qsTr("版本 V") + bridge.appVersion
             color: AppTheme.textSecondary
+            font.family: AppTheme.fontBody
             font.pixelSize: 12
         }
 
@@ -76,6 +79,7 @@ Item {
             anchors.topMargin: 76
             text: qsTr("根据电脑温度自动调节风扇转速")
             color: AppTheme.textTertiary
+            font.family: AppTheme.fontBody
             font.pixelSize: 11
         }
 
@@ -84,6 +88,7 @@ Item {
             anchors.leftMargin: 104
             anchors.top: parent.top
             anchors.topMargin: 96
+            font.family: AppTheme.fontBody
             font.pixelSize: 11
             color: bridge.firmwareSupportsShutdown ? AppTheme.textTertiary : AppTheme.danger
             text: {
@@ -108,6 +113,7 @@ Item {
             anchors.topMargin: 116
             text: qsTr("感谢 cyjycx 的资金支持！")
             color: AppTheme.accent
+            font.family: AppTheme.fontBody
             font.pixelSize: 12
             font.bold: true
         }
@@ -161,6 +167,7 @@ Item {
             anchors.topMargin: 12
             text: qsTr("固件升级")
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
             font.pixelSize: 13
         }
 
@@ -171,6 +178,7 @@ Item {
             anchors.topMargin: 12
             text: bridge.otaPercent + "%"
             color: bridge.otaPercent === 100 ? AppTheme.accent : AppTheme.textSecondary
+            font.family: AppTheme.fontBody
             font.pixelSize: 13
             font.bold: true
         }
@@ -185,6 +193,7 @@ Item {
             text: bridge.otaStatusText
             color: bridge.otaStatusText.indexOf(qsTr("失败")) >= 0
                    ? AppTheme.danger : AppTheme.textTertiary
+            font.family: AppTheme.fontBody
             font.pixelSize: 11
             elide: Text.ElideRight
         }
@@ -223,6 +232,7 @@ Item {
                 anchors.centerIn: parent
                 text: qsTr("取消")
                 color: AppTheme.danger
+                font.family: AppTheme.fontBody
                 font.pixelSize: 11
             }
 

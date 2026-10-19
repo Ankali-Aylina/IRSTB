@@ -15,6 +15,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFontDatabase>
 #include <QMenu>
 #include <QMessageBox>
 #include <QProcess>
@@ -59,6 +60,32 @@ QmlBridge::QmlBridge(QObject* parent)
 	setupModules();
 	setupBleConnections();
 	setupTrayIcon();
+
+	// --- 字体：NASA 风格要求「拉丁用 Nasalization、中文用 MapleMono」 ---
+	// QML 的 font 值类型没有 families 属性（Qt 6.11 实测报 "Cannot assign to non-existent property"），
+	// 没法在同一个 Text 上直接给一串字体。这里走 Qt 的「按脚本回退」：
+	//   · 主字体族 = Nasalization（负责拉丁字形）
+	//   · 再把 MapleMono 注册成 Han 脚本的应用级回退 → 同一个 Text 里的中文自动落到 MapleMono
+	// 两者都按「已安装才用」处理，族名有多个候选拼写；没装时留空串，QML 侧退回系统默认字体。
+	// 注意：这个回退只对「主字体缺该字形」生效，所以默认/浅色/深色主题（主字体为微软雅黑，
+	// 自带中文字形）完全不受影响。
+	{
+		const QStringList installed = QFontDatabase::families();
+		const auto resolve = [&installed](const QStringList& candidates) -> QString {
+			for (const QString& name : candidates) {
+				if (installed.contains(name, Qt::CaseInsensitive)) return name;
+			}
+			return QString();
+		};
+
+		m_fontCjk = resolve({ QStringLiteral("Maple Mono NF CN"), QStringLiteral("Maple Mono"),
+		                      QStringLiteral("MapleMono") });
+		m_fontLatin = resolve({ QStringLiteral("Nasalization Rg"), QStringLiteral("Nasalization") });
+		// 没装 Nasalization 时至少让 MapleMono 顶上（它拉丁/中文都有），避免整屏退回系统字体
+		if (m_fontLatin.isEmpty()) m_fontLatin = m_fontCjk;
+		if (!m_fontCjk.isEmpty())
+			QFontDatabase::addApplicationFallbackFontFamily(QChar::Script_Han, m_fontCjk);
+	}
 
 	// --- 从配置加载 UI 初始状态 ---
 	{

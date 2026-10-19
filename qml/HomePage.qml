@@ -10,6 +10,7 @@ Item {
         id: homeTitle
         text: qsTr("实时温度")
         color: AppTheme.textSecondary
+        font.family: AppTheme.fontBody
         font.pixelSize: 13
         anchors.top: parent.top
         anchors.left: parent.left
@@ -85,6 +86,7 @@ Item {
                 Text {
                     text: qsTr("蓝牙连接")
                     color: AppTheme.textSecondary
+                    font.family: AppTheme.fontBody
                     font.pixelSize: 12
                 }
                 Text {
@@ -169,6 +171,7 @@ Item {
             Text {
                 text: qsTr("风扇模式")
                 color: AppTheme.textSecondary
+                font.family: AppTheme.fontBody
                 font.pixelSize: 13
                 anchors.top: parent.top
                 anchors.topMargin: 14
@@ -214,6 +217,7 @@ Item {
             Text {
                 text: qsTr("数据发送延时")
                 color: AppTheme.textSecondary
+                font.family: AppTheme.fontBody
                 font.pixelSize: 13
                 anchors.top: parent.top
                 anchors.topMargin: 14
@@ -299,6 +303,7 @@ Item {
             anchors.topMargin: 16
             text: qsTr("关机散热")
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
             font.pixelSize: 13
         }
 
@@ -312,6 +317,7 @@ Item {
             anchors.topMargin: 6
             text: qsTr("风扇满速运行设定时长后自动断电；倒计时由下位机独立完成，期间蓝牙断开或电脑关机均不受影响")
             color: AppTheme.textSecondary
+            font.family: AppTheme.fontBody
             font.pixelSize: 12
             wrapMode: Text.WordWrap
         }
@@ -406,6 +412,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: bridge.shutdownNotice
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
             font.pixelSize: 12
             wrapMode: Text.WordWrap
             maximumLineCount: 2
@@ -419,6 +426,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: "\u2715"
             color: AppTheme.danger
+            font.family: AppTheme.fontBody
             font.pixelSize: 13
 
             MouseArea {

@@ -36,6 +36,7 @@ Button {
             color: control.active ? AppTheme.accent
                  : control.hovered ? AppTheme.textPrimary
                  : AppTheme.textSecondary
+            font.family: AppTheme.fontBody
             font.pixelSize: 13
             anchors.verticalCenter: parent.verticalCenter
         }

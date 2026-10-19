@@ -7,6 +7,7 @@ Item {
     Text {
         text: qsTr("设置")
         color: AppTheme.textSecondary
+        font.family: AppTheme.fontBody
         font.pixelSize: 13
     }
 
@@ -32,6 +33,7 @@ Item {
             anchors.topMargin: 14
             text: qsTr("主题模式")
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
             font.pixelSize: 13
         }
 
@@ -42,6 +44,7 @@ Item {
             anchors.bottomMargin: 14
             text: qsTr("跟随系统，或手动指定浅色 / 深色")
             color: AppTheme.textTertiary
+            font.family: AppTheme.fontBody
             font.pixelSize: 11
         }
 
@@ -77,6 +80,7 @@ Item {
             anchors.topMargin: 14
             text: qsTr("风格")
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
             font.pixelSize: 13
         }
 
@@ -87,6 +91,7 @@ Item {
             anchors.bottomMargin: 14
             text: qsTr("NASA 朋克：1960–80 年代航天器工业设计")
             color: AppTheme.textTertiary
+            font.family: AppTheme.fontBody
             font.pixelSize: 11
         }
 
@@ -121,6 +126,7 @@ Item {
             anchors.topMargin: 14
             text: qsTr("背景材质")
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
             font.pixelSize: 13
         }
 
@@ -131,6 +137,7 @@ Item {
             anchors.bottomMargin: 14
             text: qsTr("Windows 11 云母 (Mica) / 亚克力 (Acrylic)，旧系统自动降级")
             color: AppTheme.textTertiary
+            font.family: AppTheme.fontBody
             font.pixelSize: 11
         }
 
@@ -175,6 +182,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: qsTr("开机自启动")
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
             font.pixelSize: 14
         }
 
@@ -217,6 +225,7 @@ Item {
             anchors.topMargin: 15
             text: qsTr("系统通知")
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
             font.pixelSize: 14
         }
 
@@ -227,6 +236,7 @@ Item {
             anchors.topMargin: 36
             text: qsTr("关机散热结束或指令下发失败时，在右下角弹出提示（窗口最小化也可见）")
             color: AppTheme.textTertiary
+            font.family: AppTheme.fontBody
             font.pixelSize: 11
             elide: Text.ElideRight
             anchors.right: notifyToggle.left
@@ -260,6 +270,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: qsTr("重置设置")
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
             font.pixelSize: 14
         }
 
@@ -270,6 +281,7 @@ Item {
             anchors.topMargin: 38
             text: qsTr("删除配置文件并重启应用")
             color: AppTheme.textTertiary
+            font.family: AppTheme.fontBody
             font.pixelSize: 11
         }
 

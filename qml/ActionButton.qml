@@ -30,6 +30,7 @@ Button {
         Text {
             text: control.text
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
             font.pixelSize: 13
             anchors.verticalCenter: parent.verticalCenter
         }

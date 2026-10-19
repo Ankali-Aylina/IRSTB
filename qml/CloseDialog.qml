@@ -34,6 +34,7 @@ Dialog {
             anchors.verticalCenter: parent.verticalCenter
             text: qsTr("退出提示")
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
             font.pixelSize: 14
             font.bold: true
         }
@@ -45,6 +46,7 @@ Dialog {
         Text {
             text: qsTr("要退出程序，还是最小化到系统托盘？")
             color: AppTheme.textPrimary
+            font.family: AppTheme.fontBody
             font.pixelSize: 13
             wrapMode: Text.WordWrap
         }
@@ -52,6 +54,7 @@ Dialog {
         Text {
             text: qsTr("最小化到托盘后，程序仍会在后台监控温度，双击托盘图标可恢复窗口。")
             color: AppTheme.textTertiary
+            font.family: AppTheme.fontBody
             font.pixelSize: 11
             wrapMode: Text.WordWrap
             lineHeight: 1.4

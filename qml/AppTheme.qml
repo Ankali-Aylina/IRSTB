@@ -159,12 +159,21 @@ QtObject {
     readonly property int borderWidth:   1
 
     // ================= 样式令牌：字体 =================
-    // 中文正文始终用雅黑（Nasalization 无中日韩字形，直接套会导致回退不一致）。
-    readonly property string fontBody:    "Microsoft YaHei"
-    // 拉丁字标 / 大号读数：NASA 模式用 Nasalization Rg
-    readonly property string fontDisplay: nasa ? "Nasalization Rg" : "Microsoft YaHei"
-    // 技术标签 / 元数据 / 数值：等宽
-    readonly property string fontMono:    nasa ? "Consolas" : "Microsoft YaHei"
+    // NASA 风格要求「拉丁用 Nasalization Rg、中文用 MapleMono」。
+    // 族名不写死：由 QmlBridge 运行时从已安装字体里解析，main.qml 用 Binding 写入这两个属性；
+    // 用户没装时是空串，下面回退到系统默认字体（不报错、也不影响使用）。
+    // 中文能在「拉丁主字体」下生效，靠的是 QmlBridge 里注册的 Han 脚本应用级回退。
+    property string fontLatin: ""
+    property string fontCjk: ""
+    readonly property string fontSystem: "Microsoft YaHei UI"
+    // 实际主字体族：NASA 下取解析到的拉丁字族（缺字形会自动落到 MapleMono → 系统字体）
+    readonly property string fontActive: nasa ? (fontLatin !== "" ? fontLatin : fontSystem) : fontSystem
+
+    // 正文 / 拉丁字标 / 技术标签。三者在 NASA 下都是同一个字族，
+    // 差别由字重、字号、字距和大小写来体现（原来的「等宽」在 Nasalization 下不成立）。
+    readonly property string fontBody: fontActive
+    readonly property string fontDisplay: fontActive
+    readonly property string fontMono: fontActive
     readonly property int letterSpacingTight: nasa ? 0.5 : 0
 
     // ================= NASA 装饰用色 =================

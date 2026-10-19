@@ -24,6 +24,7 @@ Button {
         color: control.active ? AppTheme.textOnAccent
              : control.hovered ? AppTheme.textPrimary
              : AppTheme.textSecondary
+        font.family: AppTheme.fontBody
         font.pixelSize: 12
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter

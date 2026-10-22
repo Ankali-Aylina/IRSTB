@@ -143,6 +143,80 @@ Item {
             opacity: enabled ? 1.0 : 0.5
             onClicked: bridge.chooseFirmwareAndUpgrade()
         }
+
+        ActionButton {
+            id: checkUpdateButton
+            text: bridge.updateState === 1 ? qsTr("检查中…") : qsTr("检查更新")
+            iconComponent: downloadIconComponent
+            enabled: !bridge.otaRunning && bridge.updateState !== 1
+            opacity: enabled ? 1.0 : 0.5
+            onClicked: bridge.checkForUpdates()
+        }
+    }
+
+    // 「检查更新」的矢量图标（与 ThemeIcon 的位图二选一，由 ActionButton.iconComponent 切换）
+    Component {
+        id: downloadIconComponent
+        IconDownload {
+            size: 18
+            color: AppTheme.textSecondary
+        }
+    }
+
+    // 版本检测结果面板。与 otaPanel 共用同一位置：
+    // OTA 进行中时让位给 OTA，其余时间显示检查结果（两者互斥，不会叠在一起）。
+    Rectangle {
+        id: updatePanel
+        anchors.top: parent.top
+        anchors.topMargin: 244
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 72
+        radius: AppTheme.radiusPanel
+        border.width: AppTheme.nasa ? 1 : 0
+        border.color: AppTheme.border
+        color: AppTheme.bgPanel
+        visible: !bridge.otaRunning && bridge.updateState >= 2
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.leftMargin: 20
+            anchors.verticalCenter: parent.verticalCenter
+            width: 3
+            height: 26
+            color: bridge.updateState === 3 ? AppTheme.accent
+                 : bridge.updateState === 4 ? AppTheme.danger
+                 : AppTheme.success
+        }
+
+        Text {
+            anchors.left: parent.left
+            anchors.leftMargin: 33
+            anchors.right: parent.right
+            anchors.rightMargin: 158
+            anchors.verticalCenter: parent.verticalCenter
+            text: bridge.updateText
+            color: bridge.updateState === 3 ? AppTheme.accent
+                 : bridge.updateState === 4 ? AppTheme.danger
+                 : AppTheme.textSecondary
+            font.family: AppTheme.fontBody
+            font.pixelSize: 12
+            elide: Text.ElideRight
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
+        }
+
+        ActionButton {
+            anchors.right: parent.right
+            anchors.rightMargin: 14
+            anchors.verticalCenter: parent.verticalCenter
+            visible: bridge.updateState === 3
+            implicitWidth: 132
+            implicitHeight: 36
+            text: qsTr("前往下载")
+            iconSource: "qrc:/TCV3/res/icon/github-line.png"
+            onClicked: bridge.openUpdateUrl()
+        }
     }
 
     Rectangle {

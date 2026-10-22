@@ -26,6 +26,7 @@
         <file>qml/NasaTicks.qml</file>
         <file>qml/IconChipTemp.qml</file>
         <file>qml/IconBluetooth.qml</file>
+        <file>qml/IconDownload.qml</file>
         <file>res/icon/about_fill.png</file>
         <file>res/icon/about_line.png</file>
         <file>res/icon/close.png</file>

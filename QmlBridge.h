@@ -11,6 +11,7 @@
 class AppModuleManager;
 class IConfigProvider;
 class QSystemTrayIcon;
+class QNetworkAccessManager;
 
 /// <summary>
 /// C++ 与 QML 之间的桥接层（替代原 TCV3 Widgets 主窗口的 UI 职责）。
@@ -21,6 +22,16 @@ class QSystemTrayIcon;
 class QmlBridge : public QObject
 {
 	Q_OBJECT
+
+public:
+	/// <summary>版本检测状态（供 QML 显示不同文案与配色）</summary>
+	enum UpdateState {
+		UpdateIdle = 0,      ///< 尚未检查
+		UpdateChecking = 1,  ///< 检查中
+		UpdateLatest = 2,    ///< 已是最新
+		UpdateAvailable = 3, ///< 有新版本
+		UpdateFailed = 4     ///< 检查失败
+	};
 
 	// --- QML 可绑定属性 ---
 	Q_PROPERTY(int cpuTemp READ cpuTemp NOTIFY cpuTempChanged)
@@ -45,6 +56,10 @@ class QmlBridge : public QObject
 	// 中文之所以能在 fontLatin 做主字体时仍走 MapleMono，靠的是 QFontDatabase 的 Han 脚本回退。
 	Q_PROPERTY(QString fontLatin READ fontLatin CONSTANT)
 	Q_PROPERTY(QString fontCjk READ fontCjk CONSTANT)
+	// 版本检测（GitHub Releases）。四个属性一起变化，统一用 updateStateChanged 通知。
+	Q_PROPERTY(int updateState READ updateState NOTIFY updateStateChanged)
+	Q_PROPERTY(QString updateText READ updateText NOTIFY updateStateChanged)
+	Q_PROPERTY(QString updateVersion READ updateVersion NOTIFY updateStateChanged)
 	// 主题风格：0=默认 1=NASA 朋克（持久化到 [App]/ThemeStyle）
 	Q_PROPERTY(int themeStyle READ themeStyle NOTIFY themeStyleChanged)
 	// 主题模式：0=跟随系统 1=手动·浅色 2=手动·深色（持久化到 [App]/ThemeMode）
@@ -96,6 +111,9 @@ public:
 	QString appVersion() const { return QCoreApplication::applicationVersion(); }
 	QString fontLatin() const { return m_fontLatin; }
 	QString fontCjk() const { return m_fontCjk; }
+	int updateState() const { return m_updateState; }
+	QString updateText() const { return m_updateText; }
+	QString updateVersion() const { return m_updateVersion; }
 	int themeStyle() const { return m_themeStyle; }
 	int themeMode() const { return m_themeMode; }
 	int backdropType() const { return m_backdropType; }
@@ -145,6 +163,12 @@ public slots:
 	/// <summary>读取更新日志（QRC 内 markdown 原文）</summary>
 	QString readUpdateLog();
 
+	/// <summary>检查是否有新版本（访问 GitHub Releases；重复调用会被忽略）</summary>
+	Q_INVOKABLE void checkForUpdates();
+
+	/// <summary>在浏览器打开「检查更新」返回的发布页</summary>
+	Q_INVOKABLE void openUpdateUrl();
+
 	/// <summary>设置主题风格（0=默认 1=NASA 朋克）</summary>
 	void setThemeStyle(int style);
 
@@ -184,6 +208,7 @@ signals:
 	void shutdownNoticeChanged();
 	void bleStateChanged();
 	void themeStyleChanged(int style);
+	void updateStateChanged();
 	void themeModeChanged(int mode);
 	void backdropTypeChanged(int type);
 	void notifyEnabledChanged(bool enabled);
@@ -250,6 +275,11 @@ private:
 	int m_themeStyle = 0;
 	QString m_fontLatin;                // NASA 风格的拉丁字体族（未安装为空串）
 	QString m_fontCjk;                  // NASA 风格的中文字体族（未安装为空串）
+	int m_updateState = UpdateIdle;
+	QString m_updateText;              // 状态文案（直接显示在「关于」页）
+	QString m_updateVersion;           // 检测到的最新版本号
+	QString m_updateUrl;               // 最新版本的发布页地址
+	QNetworkAccessManager* m_network = nullptr; // 懒创建
 	int m_themeMode = 0;
 	int m_backdropType = 1;
 	bool m_notifyEnabled = true;   // 系统通知默认开启

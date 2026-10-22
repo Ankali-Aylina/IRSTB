@@ -16,7 +16,13 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFontDatabase>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMenu>
+#include <QNetworkAccessManager>
+#include <QNetworkProxyFactory>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QMessageBox>
 #include <QProcess>
 #include <QSettings>
@@ -24,6 +30,7 @@
 #include <QTextStream>
 #include <QTimer>
 #include <QUrl>
+#include <QVector>
 
 #include <dwmapi.h>
 #pragma comment(lib, "dwmapi.lib")
@@ -706,6 +713,138 @@ void QmlBridge::applyDarkMode(bool dark)
 void QmlBridge::openSupportUrl()
 {
 	QDesktopServices::openUrl(QUrl(QStringLiteral("https://ankali-aylina.github.io/2025/05/05/IRSTB/")));
+}
+
+// ============================================================================
+// 版本检测（GitHub Releases）
+// ============================================================================
+
+namespace {
+
+/// <summary>版本检测请求的超时（毫秒）。超时按「检查失败」处理，不会一直挂着。</summary>
+constexpr int kUpdateTimeoutMs = 12000;
+
+/// <summary>最新版本的发布页（接口异常时也要给出一个可点的地址）</summary>
+constexpr auto kReleasesPageUrl = "https://github.com/Ankali-Aylina/IRSTB/releases/latest";
+
+/// <summary>把 "v4.5.1.0" / "4.5.1" 之类的标签解析成定长 4 段数字；解析失败返回空列表。</summary>
+QVector<int> parseVersion(QString tag)
+{
+	tag = tag.trimmed();
+	if (tag.startsWith(QLatin1Char('v'), Qt::CaseInsensitive)) tag.remove(0, 1);
+	if (tag.isEmpty()) return {};
+
+	const QStringList parts = tag.split(QLatin1Char('.'));
+	if (parts.size() > 4) return {};
+
+	QVector<int> out;
+	out.reserve(4);
+	for (const QString& part : parts) {
+		bool ok = false;
+		const int value = part.toInt(&ok);
+		if (!ok || value < 0) return {};   // 出现非数字段（如 "4.5.1-beta"）即视为不可比较
+		out.append(value);
+	}
+	while (out.size() < 4) out.append(0);
+	return out;
+}
+
+/// <summary>a 大于 b 返回正数，相等返回 0，a 小于 b 返回负数。</summary>
+int compareVersion(QVector<int> a, QVector<int> b)
+{
+	a.resize(4);
+	b.resize(4);
+	for (int i = 0; i < 4; ++i) {
+		if (a[i] != b[i]) return a[i] - b[i];
+	}
+	return 0;
+}
+
+} // namespace
+
+void QmlBridge::checkForUpdates()
+{
+	// 防重入：正在检查时再点无效（按钮那边也会禁用，这里是第二道保险）
+	if (m_updateState == UpdateChecking) return;
+
+	auto setState = [this](int state, const QString& text, const QString& version = QString()) {
+		m_updateState = state;
+		m_updateText = text;
+		m_updateVersion = version;
+		emit updateStateChanged();
+	};
+
+	setState(UpdateChecking, QStringLiteral("正在检查新版本…"));
+
+	if (!m_network) {
+		m_network = new QNetworkAccessManager(this);
+		// 很多用户靠本地代理上网（如 127.0.0.1:7897）。QNetworkAccessManager 默认不读系统代理设置，
+		// 必须显式打开，否则在开着代理的机器上会直接连不上。
+		QNetworkProxyFactory::setUseSystemConfiguration(true);
+	}
+
+	QNetworkRequest request(
+		QUrl(QStringLiteral("https://api.github.com/repos/Ankali-Aylina/IRSTB/releases/latest")));
+	request.setHeader(QNetworkRequest::UserAgentHeader,
+	                  QStringLiteral("TemperatureControlV3/%1").arg(QCoreApplication::applicationVersion()));
+	request.setRawHeader("Accept", "application/vnd.github+json");
+	request.setTransferTimeout(kUpdateTimeoutMs);
+
+	QNetworkReply* reply = m_network->get(request);
+	connect(reply, &QNetworkReply::finished, this, [this, reply, setState]() {
+		reply->deleteLater();
+
+		if (reply->error() != QNetworkReply::NoError) {
+			// 404 = 仓库里还没有任何 release；这不算故障，按「还没有已发布的版本」呈现
+			const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+			if (status == 404) {
+				m_updateUrl = QString::fromLatin1(kReleasesPageUrl);
+				setState(UpdateLatest, QStringLiteral("暂时没有已发布的版本"));
+			} else if (status == 403) {
+				// 匿名调用 GitHub 接口限流（每小时 60 次）
+				setState(UpdateFailed, QStringLiteral("检查失败：请求过于频繁，请稍后再试"));
+			} else {
+				setState(UpdateFailed, QStringLiteral("检查失败：%1").arg(reply->errorString()));
+			}
+			return;
+		}
+
+		const QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
+		const QString tag = obj.value(QStringLiteral("tag_name")).toString();
+		const QString pageUrl = obj.value(QStringLiteral("html_url")).toString();
+		m_updateUrl = pageUrl.isEmpty() ? QString::fromLatin1(kReleasesPageUrl) : pageUrl;
+
+		const QVector<int> latest = parseVersion(tag);
+		if (latest.isEmpty()) {
+			setState(UpdateFailed,
+			         QStringLiteral("检查失败：无法解析最新版本号（%1）")
+			             .arg(tag.isEmpty() ? QStringLiteral("空") : tag));
+			return;
+		}
+
+		const QVector<int> current = parseVersion(QCoreApplication::applicationVersion());
+		if (current.isEmpty()) {
+			setState(UpdateFailed, QStringLiteral("检查失败：当前版本号异常"));
+			return;
+		}
+
+		if (compareVersion(latest, current) > 0) {
+			const QString plain = tag.startsWith(QLatin1Char('v'), Qt::CaseInsensitive) ? tag.mid(1) : tag;
+			setState(UpdateAvailable,
+			         QStringLiteral("发现新版本 v%1（当前 v%2）")
+			             .arg(plain, QCoreApplication::applicationVersion()),
+			         plain);
+		} else {
+			setState(UpdateLatest, QStringLiteral("已是最新版本（v%1）")
+			                           .arg(QCoreApplication::applicationVersion()));
+		}
+	});
+}
+
+void QmlBridge::openUpdateUrl()
+{
+	QDesktopServices::openUrl(QUrl(m_updateUrl.isEmpty() ? QString::fromLatin1(kReleasesPageUrl)
+	                                                    : m_updateUrl));
 }
 
 QString QmlBridge::readUpdateLog()

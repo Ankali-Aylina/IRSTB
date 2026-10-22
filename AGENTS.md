@@ -291,6 +291,29 @@ Finishing  发 "OTAE\n" → OTAOK = 校验通过并激活（下位机随后自�
 - **实测数据**（16620 字节镜像，Android/PC 端 BT24-T 模块）：128 字节负载全帧通过，
   130 帧约 **33 秒**完成
 
+### 版本检测（GitHub Releases）
+
+「关于」页的「检查更新」→ `QmlBridge::checkForUpdates()`：
+
+```
+GET https://api.github.com/repos/Ankali-Aylina/IRSTB/releases/latest
+```
+
+| 要点 | 做法 |
+| --- | --- |
+| 版本比较 | `tag_name` 与 `QCoreApplication::applicationVersion()` 都解析成**定长 4 段整数**再逐段比，不做字符串比较 |
+| ⚠️ 发版 tag 必须是纯数字 | 解析出非数字段（如 `v4.6.0.0-beta`）会判为「无法解析」→ 界面显示检查失败。**发版只能打 `vX.Y.Z.0` 这种 tag** |
+| 只认正式发布 | `releases/latest` 不包含 draft 与 prerelease；只在本地 `installer\` 出包、没在 GitHub 建 Release 时，检查结果永远是「暂时没有已发布的版本」 |
+| 状态机 | `UpdateIdle/Checking/Latest/Available/Failed`（0~4），四个属性共用 `updateStateChanged` 通知 |
+| 防重入 | `checkForUpdates()` 里判断 `UpdateChecking` 直接返回；按钮同时禁用并显示「检查中…」 |
+| 超时 | `QNetworkRequest::setTransferTimeout(12000)`，不会一直挂着 |
+| ⚠️ 代理 | QNetworkAccessManager **默认不读系统代理**，必须 `QNetworkProxyFactory::setUseSystemConfiguration(true)`，否则开着 `127.0.0.1:7897` 这类本地代理的机器直接连不上 |
+| 404 不算故障 | 仓库里还没有 Release → 显示「暂时没有已发布的版本」 |
+| 403 是限流 | 匿名调用 GitHub 接口每小时 60 次，提示稍后再试而不是抛网络错误 |
+| 只手动触发 | 不做后台/启动自动检查；想加的话注意 QmlBridge 构造时网络尚未可用，需延后 |
+| 链接模块 | `vcxproj` 的 `<QtModules>` 必须含 `network`（两处配置都要） |
+| 界面位置 | 放「关于」页（「设置」页没有滚动容器，加面板会溢出）。结果面板与 `otaPanel` 共用 `topMargin: 244` 槽位，靠 `visible` 互斥，OTA 进行中时让位给 OTA |
+
 ### 错误处理约定
 
 | 场景         | 模式                                                                               |
